@@ -1,0 +1,410 @@
+---
+title: 'Homework 3'
+author: "Jacob Thielemier"
+date: "7 April 2024"
+output: pdf_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	results = 'hide'
+)
+```
+
+## Question 1
+
+#### Part (a and b)
+
+```{r}
+library(ggplot2)
+library(knitr)
+library(dplyr)
+library(kableExtra)
+library(tidyr)
+library(readr)
+library(broom)
+
+dat <- read.csv("C:\\Users\\JThie\\OneDrive\\Desktop\\Spring 24\\Linear Models\\Homework\\HW3\\framingham.csv")
+```
+
+```{r}
+colnames(dat)
+print(colnames(dat))
+```
+
+-   The names of the variables in the data set are:
+    -   male
+    -   age
+    -   education
+    -   currentSmoker
+    -   cigsPerDay
+    -   BPMeds
+    -   prevalentStroke
+    -   prevalentHyp
+    -   diabetes
+    -   totChol
+    -   sysBP
+    -   diaBP
+    -   BMI
+    -   heartRate
+    -   glucose
+    -   TenYearCHD
+
+#### Part (c)
+
+```{r}
+nrow(dat)
+```
+
+-   There are 4240 observations.
+
+#### Part (d)
+
+-   Proposed model: sysBP \~ totChol + male + age + diabetes + diaBP + BMI + currentSmoker + cigsPerDay + glucose
+
+-   The following are possible confounders that are associated with sysBP and totChol:
+
+    -   male
+    -   age
+    -   diabetes
+    -   diaBP
+    -   BMI
+
+-   The following are precision variables that will help our estimates:
+
+    -   currentSmoker
+    -   cigsPerDay
+    -   glucose
+
+## Question 2
+
+#### Part (a)
+
+```{r}
+hist(dat$age, main = "Historgram of Age")
+hist(dat$cigsPerDay, main = "Histogram of Cigarettes Per Day")
+hist(dat$totChol, breaks=50, main = "Histogram of Total Cholesterol")
+hist(dat$sysBP, breaks=50, main = "Histogram of Systolic BP")
+hist(dat$diaBP, breaks=50, main = "Histogram of Diastolic BP")
+hist(dat$BMI, breaks=50, main = "Histogram of BMI")
+hist(dat$heartRate, breaks=30, main = "Histogram of Heartrate")
+hist(dat$glucose, breaks=25, main = "Histogram of Glucose")
+```
+
+#### Part (b)
+
+-   **Age:** looks fine with a small amount being very young.
+-   **Cigarettes per day:** Most people that smoke have around 20 cigarettes per day.
+-   **Total cholesterol:** It is bell shaped curved, but seems high since typically 200 is ideal
+-   **Systolic BP and Diastolic BP:** Both look typical.
+-   **BMI:** Typically want to see between 18 and 25. This data seems a little higher, but not concerning.
+-   **Heart Rate:** This looks average
+-   **Glucose:** The typical range is 70-100 so most data falls in the range. However, the data over 150 does raise concerns.
+
+## Question 3
+
+```{r results='asis'}
+categorical_vars <- c('male', 'education', 'currentSmoker', 'BPMeds', 'diabetes')
+combined_freq_table <- data.frame() 
+
+for (var in categorical_vars) {
+  freq_table <- dat %>%
+    count(!!sym(var), name = "Count") %>%
+    mutate(
+      Percentage = Count / sum(Count) * 100,
+      Variable = var, 
+      Value = as.character(!!sym(var)) 
+    ) %>%
+    select(Variable, Value, Count, Percentage) 
+  
+  if (var == categorical_vars[1]) {
+    combined_freq_table <- freq_table
+  } else {
+    combined_freq_table <- rbind(combined_freq_table, freq_table) 
+  }
+}
+
+kable(combined_freq_table,
+      caption = "Combined Frequency Distribution",
+      booktabs = TRUE)
+```
+
+## Question 4
+
+```{r}
+variables <- c('BMI', 'heartRate', 'glucose', 'totChol', 'sysBP', 'diaBP')
+
+for (var in variables) {
+  print(
+    ggplot(data = dat, aes_string(x = 'factor(TenYearCHD)', y = var)) +
+      geom_boxplot(aes(fill = factor(TenYearCHD))) + 
+      scale_fill_manual(values = c("darkgreen", "darkorange"), name = "Ten Year CHD Risk", labels = c("Low", "High")) +
+      labs(title = paste('Boxplot of', var, 'by TenYearCHD'),
+           x = 'Ten Year CHD Risk',
+           y = var) +
+      theme_light()
+  )
+}
+```
+
+## Question 5
+
+#### Part (a)
+
+```{r results='asis'}
+continuous_vars <- c('age', 'cigsPerDay', 'BMI', 'heartRate', 'glucose', 'totChol', 'sysBP', 'diaBP')  
+summary_df <- data.frame(Variable = character(), Mean = numeric(), SD = numeric())
+
+for (var in continuous_vars) {
+  mean_val <- mean(dat[[var]], na.rm = TRUE)
+  sd_val <- sd(dat[[var]], na.rm = TRUE)
+  
+  mean_val_rounded <- round(mean_val, 3)
+  sd_val_rounded <- round(sd_val, 3)
+  
+   summary_df <- rbind(summary_df, data.frame(Variable = var, Mean = mean_val, SD = sd_val))
+}
+
+kable(summary_df, caption = "Summary Statistics for Continuous Variables", booktabs = TRUE)
+```
+
+#### Part (b)
+
+```{r results='asis'}
+categorical_vars <- c('male', 'education', 'currentSmoker', 'BPMeds', 'prevalentStroke', 'prevalentHyp', 'diabetes', 'TenYearCHD') 
+
+categorical_summary <- lapply(categorical_vars, function(var) {
+  dat %>%
+    count(.data[[var]], name = "Count") %>%
+    mutate(
+      Percentage = round(Count / sum(Count) * 100, 3),
+      Variable = paste(var, .data[[var]], sep = " ") 
+    ) %>%
+    select(Variable, Count, Percentage)
+}) %>%
+  bind_rows()
+
+kable(categorical_summary, caption = "Frequency Distribution for Categorical Variables") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"))
+```
+
+## Question 6
+
+```{r}
+na_count_by_variable <- colSums(is.na(dat))
+print(na_count_by_variable)
+
+data_clean <- na.omit(dat)
+
+print(nrow(dat))
+print(nrow(data_clean))
+```
+
+-   Original dataset rows: 4240
+-   Rows after removal: 3658
+
+## Question 7
+
+```{r results='asis'}
+ggplot(data_clean) + 
+  geom_point(aes(x = sysBP, y = totChol, alpha = 0.5)) + 
+  labs(x = "Systolic Blood Pressure", y = "Total Cholesterol", title = "Scatterplot of Total Cholesterol by Systolic Blood Pressure") +
+  theme_bw()
+```
+
+## Question 8
+
+```{r results='asis'}
+ggplot(data_clean) + 
+  geom_point(aes(x = sysBP, y = totChol, color = factor(male), alpha = 0.5)) + 
+  labs(x = "Systolic Blood Pressure", y = "Total Cholesterol", title = "Scatterplot Stratified by Gender", color = "Gender") +
+  scale_color_manual(labels = c("Female", "Male"), values = c("darkorange", "darkgreen")) +
+  theme_bw()
+```
+
+## Question 9
+
+```{r results='asis'}
+ggplot(data_clean) + 
+  geom_point(aes(x = sysBP, y = totChol, color = factor(currentSmoker), alpha = 0.5)) + 
+  labs(x = "Systolic Blood Pressure", y = "Total Cholesterol", title = "Scatterplot Stratified by Current Smoking Status", color = "Current Smoker") +
+  scale_color_manual(labels = c("Non-Smoker", "Smoker"), values = c("darkorange", "darkgreen")) +
+  theme_bw()
+```
+
+## Question 10
+
+```{r results='asis'}
+ggplot(data_clean) + 
+  geom_point(aes(x = sysBP, y = totChol, color = factor(diabetes), alpha = 0.5)) + 
+  labs(x = "Systolic Blood Pressure", y = "Total Cholesterol", title = "Scatterplot Stratified by Current Diabetes Status", color = "Diabetes") +
+  scale_color_manual(labels = c("No Diabetes", "Diabetes"), values = c("darkorange", "darkgreen")) +
+  theme_bw()
+```
+
+## Question 11
+
+-   After conducting the exploratory analysis we can see that the data set is fairly average. The data includes smokers that smoke about 20 cigarettes a day and have a slightly above average **BMI**. Most of the patients also have an elevated amount of **total cholesterol**. This is typical since we are studying the affect of **total cholesterol** on **systolic BP**. There are no outliers of concern at this time.
+
+## Question 12
+
+```{r}
+fit1 <- lm(sysBP ~ totChol, data = data_clean)
+summary(fit1)
+```
+
+```{r results='asis'}
+results <- data.frame(
+  Term = c("Intercept", "Total Cholesterol"),
+  Estimate = c(107.9, 0.103),
+  `Std. Error` = c(1.798, 0.007465),
+  `P-value` = c("< 0.001", "< 0.001")
+)
+
+kable(results, digits = c(NA, 3, 3, NA))
+```
+
+## Question 13
+
+- When comparing the the simple model with the new model we see that the p-value still shows that **total cholesterol** is significant. However, there is a decrease in the estimate of **total cholesterol** that means the introduction of **BMI** and **current smoker status** to the model improves the model.
+
+```{r}
+fit2 <- lm(sysBP ~ totChol + BMI + currentSmoker, data = data_clean)
+summary(fit2)
+```
+
+```{r results='asis'} 
+results2 <- data.frame(
+  Term = c("Intercept", "Total Cholesterol", "BMI", "Current Smoker"),
+  Estimate = c(72.76883, 0.08483, 1.59197, -3.26698),
+  `Std. Error` = c(2.57945, 0.00711, 0.07880, 0.63898),
+  `t value` = c(28.211, 11.931, 20.203, -5.113),
+  `P value` = c("< 0.001", "< 0.001", "< 0.001", "< 0.001")
+)
+
+knitr::kable(
+  results2, 
+  digits = c(NA, 3, 3, 3, NA),
+  caption = "Linear Regression Model Coefficients"
+)
+```
+
+
+
+## Question 14
+
+```{r}
+fit3 <- lm(sysBP ~ totChol + male + age + diabetes + diaBP + BMI + currentSmoker + cigsPerDay + glucose, data = data_clean)
+summary(fit3)
+
+fit4 <- lm(sysBP ~ totChol + male + age + diaBP + BMI + glucose, data = data_clean)
+summary(fit4)
+```
+
+```{r results='asis'} 
+results3 <- data.frame(
+  Term = c("Intercept", "Total Cholesterol", "Male", "Age", "Diabetes", "DiaBP", "BMI", "Current Smoker", "Cig Per Day", "Glucose"),
+  Estimate = c(-17.065382, 0.010726, -3.888875, 0.590871, 1.439938, 1.347187, 0.113468, 0.351229, 0.039500, 0.050553),
+  Std_Error = c(2.182805, 0.004749, 0.436348, 0.025435, 1.575867, 0.018663, 0.054737, 0.649970, 0.027864, 0.010812),
+  P_value = c("< 0.001", "0.0240", "< 0.001", "< 0.001", "0.3609", "< 0.001", "0.0382", "0.5890", "0.1564", "< 0.001")
+)
+
+knitr::kable(
+  results3, 
+  digits = c(NA, 3, 3, 3),
+  caption = "Linear Regression Model Coefficients"
+)
+```
+
+## Question 15
+
+- The goodness of fit test shows that when comparing my model with the simple model, my model provides as significantly better fit for predicting **systolic BP**. This can be interpreted by the reduction in RSS. This indicates that my model explains a much larger portion of the variance in **systolic BP**. The significant F-statistic from the summary also suggests that the predictors added to my model improve the overall model.
+
+```{r}
+anova(fit1, fit3)
+anova(fit4, fit3)
+```
+
+```{r results='asis'}
+anova_results <- data.frame(
+  Model = c("Model 1: sysBP ~ totChol", "Model 2: sysBP ~ totChol + male + age + diabetes + diaBP + BMI + currentSmoker + cigsPerDay + glucose"),
+  `Res.Df` = c(3656, 3648),
+  `RSS` = c(1697707, 566305),
+  `Df` = c("-", 8),
+  `Sum of Sq` = c("-", 1131402),
+  `F` = c("-", 911.03),
+  `Pr(>F)` = c("-", "< 0.001")
+)
+
+knitr::kable(
+  anova_results,
+  caption = "ANOVA Results for Comparing Two Models",
+  digits = c(NA, 3, 3, 3, 3, 3, NA),
+  align = 'lcccclc',
+  col.names = c("Model", "Res.Df", "RSS", "Df", "Sum of Sq", "F", "P-value")
+)
+```
+
+
+## Question 16
+
+- The Residuals vs. Fitted plot might show a slight funnel shape. This plot indicates the equal variance, but our data does not seem to be concerning.
+- The Q-Q plot is the only one that indicates a linear regression assumption may be violated. The plot shows the the tail ends starting to turn upwards. This could indicate that the normaility assumption is violated.
+- No comments on the other two plots as they look normal.
+
+```{r results='asis'}
+predicted_values <- predict(fit3)
+
+plot(fit3)
+
+plot(data_clean$male, predicted_values, main = "Predicted Values vs. Male", xlab = "Male", ylab = "Predicted Values")
+plot(data_clean$age, predicted_values, main = "Predicted Values vs. Age", xlab = "Age", ylab = "Predicted Values")
+plot(data_clean$diabetes, predicted_values, main = "Predicted Values vs. Diabetes", xlab = "Diabetes", ylab = "Predicted Values")
+plot(data_clean$diaBP, predicted_values, main = "Predicted Values vs. DiaBP", xlab = "DiaBP", ylab = "Predicted Values")
+plot(data_clean$BMI, predicted_values, main = "Predicted Values vs. BMI", xlab = "BMI", ylab = "Predicted Values")
+plot(data_clean$currentSmoker, predicted_values, main = "Predicted Values vs. Current Smoker", xlab = "Current Smoker", ylab = "Predicted Values")
+plot(data_clean$cigsPerDay, predicted_values, main = "Predicted Values vs. Cigs Per Day", xlab = "Cigs Per Day", ylab = "Predicted Values")
+plot(data_clean$glucose, predicted_values, main = "Predicted Values vs. Glucose", xlab = "Glucose", ylab = "Predicted Values")
+```
+
+## Question 17
+
+- The proposed model indicates that there is a significant association between cholesterol and blood pressure. The Linear Regression Model Summary table below highlights the reported significance. The lack of statistical significance for **diabetes** (P-value=0.36) and current **smoking status** (P-value=0.589) was alarming. Typically someone would assume these variables would impact a persons total cholesterol levels.
+
+- I compared an additional model of **sysBP ~ totChol + male + age + diaBP + BMI + glucose** to my original model. While I removed some covariates that where not significant in my original model, this did not make the additional model better than my original model in a goodness of fit test. This indicates to me that while **diabetes, currentSmoker, and cigsPerDay** may not be significant to the model, they are precision variables that increase the overall effectiveness of the model.
+
+```{r}
+conf_intervals <- confint(fit3)
+print(conf_intervals)
+```
+
+```{r results='asis'} 
+ci_lower <- c(-20.901166375, 0.001428025, -4.644803873, 0.524010229, -2.459314438, 1.311754869, -0.002016025, -0.758123794, -0.031481616, 0.031605025)
+ci_upper <- c(-12.21209439, 0.02070883, -2.89912159, 0.62604229, 3.86634314, 1.38648984, 0.21693221, 1.83972137, 0.08022605, 0.07459194)
+
+results4 <- results3
+
+results4$`2.5 %` <- ci_lower
+results4$`97.5 %` <- ci_upper
+
+results4 <- data.frame(
+  Term = c("Intercept", "Total Cholesterol", "Male", "Age", "Diabetes", "DiaBP", "BMI", "Current Smoker", "Cig Per Day", "Glucose"),
+  Estimate = c(-17.065382, 0.010726, -3.888875, 0.590871, 1.439938, 1.347187, 0.113468, 0.351229, 0.039500, 0.050553),
+  `Std. Error` = c(2.182805, 0.004749, 0.436348, 0.025435, 1.575867, 0.018663, 0.054737, 0.649970, 0.027864, 0.010812),
+  `P-value` = c("< 0.001", "0.0240", "< 0.001", "< 0.001", "0.3609", "< 0.001", "0.0382", "0.5890", "0.1564", "< 0.001"),
+  `CI_2.5%` = c(-20.901166375, 0.001428025, -4.644803873, 0.524010229, -2.459314438, 1.311754869, -0.002016025, -0.758123794, -0.031481616, 0.031605025),
+  `CI_upper` = c(-12.21209439, 0.02070883, -2.89912159, 0.62604229, 3.86634314, 1.38648984, 0.21693221, 1.83972137, 0.08022605, 0.07459194)
+)
+
+knitr::kable(
+  results3, 
+  digits = c(NA, 3, 3, 3, 3, 3, 3),
+  caption = "Linear Regression Model Summary"
+)
+```
+
+

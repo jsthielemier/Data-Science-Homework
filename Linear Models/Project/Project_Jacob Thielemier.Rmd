@@ -1,0 +1,229 @@
+---
+title: 'Student Performance Analysis'
+author: 'Jacob Thielemier'
+date: '6 May 2024'
+bibliography: "C:/Users/JThie/OneDrive/Desktop/Spring 24/Linear Models/Project/ref.bib"
+csl: "C:/Users/JThie/OneDrive/Desktop/Spring 24/Linear Models/Linear Models/apa.csl"
+output: 
+  pdf_document:
+    includes:
+      in_header: "C:/Users/JThie/OneDrive/Desktop/Spring 24/Linear Models/Linear Models/header.tex"
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	results = 'hide'
+)
+```
+
+# 1 Introduction
+
+Educational achievement is crucial for personal development and economic advancement. Recent research has highlighted various factors influencing student performance, including socio-economic background, study habits, and school environment. This study will explore the relationships between these factors and academic outcomes among high school senior students. Utilizing a dataset comprising 10,000 observations with 6 variables, we employ a linear regression analysis to identify significant predictors of student performance. By quantifying these relationships, we seek to provide new insights that educators and policymakers can use to enhance education experiences and improve student outcomes. [@Yang2018](#references)
+
+Previous works in studying student performance were built around predicting future performance for a student. In education the values normally predicted are performance, knowledge, score or mark. [@Oyerinde2017](#references) We are going to instead analyze existing data to show what has influenced student performance. We are specifically looking at the relationship between the amount of hours studied by a student and the students overall acadmeic performance. We will accomplish this by reviewing the data we have on hand, developing questions to answer and the models we will use, detailing and describing the dataset, plotting our data, and evaluating the models to best answer our questions of interest.
+
+# 2 Materials and Methods
+
+## Students
+
+Students performance is very crucial in solving issues of the learning process and one of the important matters to measure learning outcomes. [@Alhazmi2023](#references) The Student Performance dataset we selected is designed to examine the factors influencing academic student performance. The dataset consists of 10,000 student records with the outcome measure being a Performance Index rating of 0-100. The covariates measured are: Hours.Studied, Previous.Scores, Extracurricular.Activities, Sleep.Hours, and Sample.Question.Papers.Practiced. The two tables below define the mean and standard deviation of our continuous and categorical variables.
+
+```{r results='asis'}
+library(ggplot2)
+library(knitr)
+library(dplyr)
+library(kableExtra)
+
+dat <- read.csv("C:\\Users\\JThie\\OneDrive\\Desktop\\Spring 24\\Linear Models\\Project\\Student_Performance.csv")
+
+continuous_vars <- c('Performance.Index','Hours.Studied', 'Previous.Scores', 'Sleep.Hours', 'Sample.Question.Papers.Practiced')  
+summary_df <- data.frame(Variable = character(), Mean = numeric(), SD = numeric())
+
+for (var in continuous_vars) {
+  mean_val <- mean(dat[[var]], na.rm = TRUE)
+  sd_val <- sd(dat[[var]], na.rm = TRUE)
+  
+  mean_val_rounded <- round(mean_val, 3)
+  sd_val_rounded <- round(sd_val, 3)
+  
+   summary_df <- rbind(summary_df, data.frame(Variable = var, Mean = mean_val, SD = sd_val))
+}
+
+kable(summary_df, caption = "Summary Statistics for Continuous Variables", booktabs = TRUE)
+```
+
+```{r results='asis'}
+categorical_vars <- c('Extracurricular.Activities') 
+
+categorical_summary <- lapply(categorical_vars, function(var) {
+  dat %>%
+    count(.data[[var]], name = "Count") %>%
+    mutate(
+      Percentage = round(Count / sum(Count) * 100, 3),
+      Variable = paste(var, .data[[var]], sep = " ") 
+    ) %>%
+    select(Variable, Count, Percentage)
+}) %>%
+  bind_rows()
+
+kable(categorical_summary, caption = "Frequency Distribution for Categorical Variables")
+```
+
+## Statistical Analysis
+
+There are two primary goals of the analysis:
+
+1.  How does the number of hours studied influence the students performance?
+2.  What is the interaction of hours studied with hours slept and how does this influence the students performance?
+
+We are going to use simple linear regression to analyze how the covariate of interest, Hours.Studied, impacts the Performance.Index. Our confouders are Sleep.Hours and Extracurricular.Activities. Our precision variables are Previous.Scores and Sample.Question.Papers.Practiced. We expect The proposed model we are using is:
+
+-   Performance.Index \~ Hours.Studied + Sleep.Hours + Extracurricular.Activities + Previous.Scores + Sample.Question.Papers.Practiced
+
+We are using a interaction effect model to answer the second question to determine how the number of Sleep.Hours interacts with Hours.Studied to impact the Performance.Index. The interaction affect model:
+
+-   Performance.Index \~ Hours.Studied + Sleep.Hours + Extracurricular.Activities + Previous.Scores + Sample.Question.Papers.Practiced + Hours.Studied:Sleep.Hours
+
+The Appendix contains plots for both models that show the dataset meets the liner regression assumptions of linearity, independence, normality, and equal variance. This means our dataset is ready for analyze and should provide accurate feedback without issue. We can also look at the historgrams in the Appendix to see that Performance.Index is bell shaped. We see that Hours.Studied and Sleep.Hours tend to be right skewed meaning most students have lower results on average.
+
+# 3 Results
+
+## 3.1 Question 1
+
+We can see from the Table 3 below that each of our covariates are significant and have a P-value less than 0.01. This answers our Question 1 by defining that Hours.Studied is significant on the Performance.Index. We can see that for each hour studied the student performance increased by about 2.853 points. The scatterplot shows a visual change in the Performance.Index as students Hours.Studied increases.
+
+```{r}
+fit <- lm(Performance.Index ~ Hours.Studied + Sleep.Hours + Extracurricular.Activities + Previous.Scores + Sample.Question.Papers.Practiced , data = dat)
+summary(fit)
+
+confintfit <- confint(fit)
+print(confintfit)
+```
+
+```{r results='asis'}
+ci_lower <- c(-34.3248136, 2.8375484, 0.4569937, 0.5329596, 1.0161302, 0.1798645)
+ci_upper <- c(-33.8263626, 2.8684157, 0.5041258, 0.6928356, 1.0207382, 0.2077397)
+
+results <- data.frame(
+  Term = c("Intercept", "Hours Studied", "Sleep Hours", "Extracurricular Activities", "Previous Scores", "Sample Question Papers Practiced"),
+  Estimate = c(-34.075588, 2.852982, 0.480560, 0.612898, 1.018434, 0.193802),
+  `Std. Error` = c(0.127143, 0.007873, 0.012022, 0.040781, 0.001175, 0.007110),
+  `P-value` = c("< 0.001", "< 0.001", "< 0.001",  "< 0.001",  "< 0.001",  "< 0.001"),
+  `CI 2.5%` = ci_lower,
+  `CI 97.5%` = ci_upper
+)
+
+knitr::kable(
+  results, 
+  digits = c(NA, 3, 3, NA, 3, 3),
+  caption = "Proposed Model Linear Regression Summary"
+)
+```
+
+```{r results='asis'}
+ggplot(dat) + 
+  geom_point(aes(x = Hours.Studied, y = Performance.Index, alpha = 0.5)) + 
+  labs(x = "Hours Studied", y = "Performance Index", title = "Scatterplot of Performance Index by Hours Studied") +
+  theme_bw()
+```
+
+## 3.2 Question 2
+
+We can see from Table 4 below that once we add the interaction effect of Hours.Studied:Sleep.Hours the P-value is 0.0813. This indicates that the interaction is not significant. We can also determine this based on the small estimate value of 0.008 which indicates a small change and the small t value of 1.743. 
+
+This answers our Question 2 about if the interaction between Hours.Studied and Sleep.Hours influences that Performance.Index for the students. There is no significance in the interaction effect. This can seem as a surprise to convential thinking, but the purpose of statistcial analysis.
+
+```{r}
+fit1 <- lm(Performance.Index ~ Hours.Studied + Sleep.Hours + Extracurricular.Activities + Previous.Scores + Sample.Question.Papers.Practiced + Hours.Studied:Sleep.Hours, data = dat)
+summary(fit1)
+
+confintfit1 <- confint(fit1)
+print(confintfit1)
+```
+
+```{r results='asis'}
+ci_lower1 <- c(-34.19945, 2.73831, 0.38907, 0.53313, 1.01616, 0.17999, -0.00101)
+ci_upper1 <- c(-33.42764, 2.86155, 0.49134, 0.69299, 1.02076, 0.20786, 0.01719)
+
+
+results1 <- data.frame(
+  Term = c("Intercept", "Hours Studied", "Sleep Hours", "Extracurricular Activities", "Previous Scores", 
+           "Sample Question Papers Practiced", "Hours Studied:Sleep Hours"),
+  Estimate = c(-33.813547, 2.799930, 0.440203, 0.613062, 1.018460, 0.193923, 0.008094),
+  `Std. Error` = c(0.196871, 0.031435, 0.026086, 0.040776, 0.001175, 0.007110, 0.004643),
+  `P-value` = c("< 0.001", "< 0.001", "< 0.001",  "< 0.001",  "< 0.001",  "< 0.001", "0.0813"),
+  `CI 2.5%` = c(-34.19945, 2.73831, 0.38907, 0.53313, 1.01616, 0.17999, -0.00101),
+  `CI 97.5%` = c(-33.42764, 2.86155, 0.49134, 0.69299, 1.02076, 0.20786, 0.01719)
+)
+
+
+knitr::kable(
+  results1, 
+  digits = c(NA, 3, 3, NA, 3, 3),
+  caption = "Interaction Effect Model Linear Regression Summary"
+)
+```
+
+# 4 Discussion
+
+In the Appendix there is a [bloxplot](#boxplot) of Sleep.Hours by Extracurricular.Activities(#boxplot). This is the only boxplot that shows a direct correlation between Extracurricular.Activities and any other covariate. The plot shows that if they are in Extracurricular.Activities then the mean Sleep.Hours is 6, but if they do not participate in Extracurricular.Activities then the Sleep.Hours is 7. I suggest in future research that this be studied as a interaction effect.
+
+When comparing the two models we used ANOVA with the results in Table 5 below. The Sum of Squares due to the interaction term is 12.62 which means that adding the interaction term explains a small additional amount of variance in Performance.Index. The P-value associated with the F-statistic is 0.08133, which is greater than the normal significance level of 0.05. This means that the addition of the interaction term between Hours.Studied and Sleep.Hours does not improve the model at the 5% significance level.
+
+```{r}
+anova(fit, fit1)
+```
+
+```{r results='asis'}
+anova_results <- data.frame(
+  Model = c(
+    "Model 1: Performance.Index ~ Hours.Studied + Sleep.Hours + Extracurricular.Activities + Previous.Scores + Sample.Question.Papers.Practiced", 
+    "Model 2: Performance.Index ~ Hours.Studied + Sleep.Hours + Extracurricular.Activities + Previous.Scores + Sample.Question.Papers.Practiced + Hours.Studied:Sleep.Hours"
+  ),
+  `RSS` = c(41514, 41501),
+  `Df` = c("-", 1),
+  `Sum of Sq` = c("-", 12.620),
+  `F` = c("-", 3.039),
+  `Pr(>F)` = c("-", 0.081)
+)
+
+knitr::kable(
+  anova_results,
+  caption = "ANOVA Results for Comparing the Two Models",
+  digits = c(NA, 0, NA, 3, 3, 3),
+  align = 'lccclc',
+  col.names = c("Model", "RSS", "Df", "Sum of Sq", "F", "P-value")
+)
+```
+
+# 5 Appendix {#boxplot}
+
+```{r results='asis'} 
+ggplot(data = dat, aes_string(x = 'factor(Extracurricular.Activities)', y = 'Sleep.Hours')) +
+      geom_boxplot(aes(fill = factor(Extracurricular.Activities))) + 
+      scale_fill_manual(values = c("lightblue", "red"), name = "Extracurricular Activities", labels = c("No", "Yes")) +
+      labs(title = paste('Boxplot of Sleep Hours by Extracurricular Activities'),
+           x = 'Extracurricular Activities',
+           y = 'Sleep Hours') +
+      theme_bw()
+```
+
+```{r results='asis'}
+plot(fit, main = "Proposed Model")
+plot(fit1, main = "Interaction Effect Model")
+```
+
+
+```{r results='asis'}
+hist(dat$Performance.Index, breaks = 50, main = "Historgram of Performance Index", xlab = "Performance Index")
+hist(dat$Hours.Studied, breaks = 10, main = "Historgram of Hours Studied", xlab = "Hours Studied")
+hist(dat$Sleep.Hours, breaks = 7, main = "Historgram of Sleep Hours", xlab = "Sleep Hours")
+hist(dat$Previous.Scores, breaks = 50, main = "Historgram of Previous Scores", xlab = "Previous Scores")
+hist(dat$Sample.Question.Papers.Practiced, breaks = 10, main = "Historgram of Sample Question Papers Practiced", xlab = "Sample Question Papers Practiced")
+```
+
+# 6 References {#references}

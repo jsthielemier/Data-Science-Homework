@@ -1,0 +1,629 @@
+---
+title: 'Homework 2'
+author: "Jacob Thielemier"
+date: "22 February 2024"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+### Question 1
+
+#### (a)
+
+```{r}
+
+library(ggplot2)
+
+fev_data <- read.csv('C:/Users/JThie/OneDrive/Desktop/Spring 24/Linear Models/Homework/HW2/fev.txt', header = TRUE, sep = "\t")
+
+attach(fev_data)
+
+ggplot(fev_data, aes(x = fev)) + 
+  geom_histogram(binwidth = 0.2, fill = "blue", color = "black") + 
+  ggtitle("Histogram of FEV") +
+  xlab("FEV (liters)") + 
+  ylab("Frequency")
+
+```
+
+-   The histogram shows that the data is appropriate for simple linear regression due to the large amount of the patients FEV value being grouped together. This right-skewed shape of the histogram shows the bulk of patients are grouped around the value of 2 with small amounts being much higher or much lower.
+
+#### (b)
+
+```{r}
+
+ggplot(fev_data, aes(x = smoke, y = fev)) +
+  geom_boxplot(fill = "lightblue") +
+  ggtitle("Boxplot of FEV by Smoking Status") +
+  xlab("Smoking Status") +
+  ylab("FEV (liters)")
+
+```
+
+-   The boxplot shows that the data is appropriate for simple linear regression due to the overlap of male and female patients FEV value. The boxplot shows that the mean value of the two groups is close as well as the majority of the values being between 2 - 3.5. There are more outlines for nonsmoker, but smoker looks right skewed. The boxplot does show counter intuitive information since traditionally smokers should have lower FEV.
+
+#### (c)
+
+```{r}
+
+model <- lm(fev ~ smoke, data = fev_data) 
+summary(model)
+
+```
+
+| Coefficient Name | Point Estimate | Standard Error | P-value |
+|------------------|----------------|----------------|---------|
+| Average Patient  | 2.566          | 0.035          | \<0.05  |
+| Smoker           | 0.710          | 0.109          | \<0.05  |
+
+: FEV Regression Results
+
+#### (d)
+
+```{r}
+
+conf_int <- confint(model, level = 0.95)
+print(conf_int)
+
+```
+
+-   The 95% confidence interval is from 0.495 to 0.926
+
+#### (e)
+
+-   This C.I. of 0.495 - 0.926 means that if we were to repeat the study many times, 95% of the calculated confidence intervals from those studies would contain the true effect size. For this problem it gives a range within which we can reasonably expect the true effect of smoking on FEV to lie and it informs decisions or recommendations regarding smoking's impact on lung function.
+
+#### (f)
+
+```{r}
+
+mean_fev_nonsmokers <- coef(model)["(Intercept)"]
+ci_nonsmokers <- conf_int["(Intercept)",]
+
+mean_fev_smokers <- coef(model)["(Intercept)"] + coef(model)["smokesmoker"]
+ci_smokers <- conf_int["(Intercept)",] + conf_int["smokesmoker",]
+
+```
+
+-   95% CI for the average FEV among nonsmokers: 2.498083 2.634202
+-   95% CI for the average FEV among smokers: 2.992918 3.560805
+
+#### (g)
+
+```{r}
+
+plot(model, which = 1)
+
+```
+
+-   The data appears to violate the assumption of linearity of linear regression. This is because there is no random scattering of points around the horizontal line at 0.
+
+#### (h)
+
+```{r}
+
+residuals <- rstandard(model)
+qqnorm(residuals)
+qqline(residuals, col = "red")
+
+```
+
+-   The data appears to satisfy the assumptions of linear regression. This is becuase the points on the Q-Q Plot closely follow the reference line with minor deviations at both ends.
+
+### Question 2
+
+#### (a)
+
+```{r}
+
+ggplot(fev_data, aes(x = height, y = fev)) +
+  geom_point(color = "blue") +
+  ggtitle("Scatterplot of Height versus FEV") +
+  xlab("Height (inches)") +
+  ylab("FEV (liters)")
+
+```
+
+#### (b)
+
+```{r}
+
+heightmodel <- lm(fev ~ height, data = fev_data)
+summary(heightmodel)
+
+```
+
+| Coefficient Name | Point Estimate | Standard Error | P-value |
+|------------------|----------------|----------------|---------|
+| Average Patient  | -5.433         | 0.181          | \<0.05  |
+| Height           | 0.132          | 0.003          | \<0.05  |
+
+: FEV Regression Results of Height
+
+#### (c)
+
+```{r}
+
+par(mfrow=c(2,2))
+plot(heightmodel)
+
+```
+
+-   The Residuals vs Fitted plot shows a \< shape getting wider on the right hand side. This violates the assumption of constant variance.
+
+#### (d)
+
+```{r}
+
+ggplot(fev_data, aes(x = smoke, y = height)) +
+  geom_boxplot(fill = "lightblue") +
+  ggtitle("Boxplot of Height by Smoking Status") +
+  xlab("Smoking Status") +
+  ylab("Height (inches)")
+
+```
+
+-   The box plot shows that smokers tend to be taller. Smokers have a higher average height around 66in and nonsmokers have an average height around 61in.
+
+#### (e)
+
+$$
+\text{FEV} = \beta_0 + \beta_1 \text{(SmokingStatus)} + \beta_2 \text{(Height)} + \varepsilon
+$$
+
+```{r}
+
+smokingheightmodel <- lm(fev ~ smoke + height, data = fev_data)
+summary(smokingheightmodel)
+
+```
+
+| Coefficient Name | Point Estimate | Standard Error | P-value |
+|------------------|----------------|----------------|---------|
+| Average Patient  | -5.433         | 0.181          | \<0.05  |
+| Smoker           | 0.006          | 0.089          | 0.914   |
+| Height           | 0.132          | 0.003          | \<0.05  |
+
+: FEV Regression Results of Smoking and Height
+
+#### (f)
+
+```{r}
+
+confint(smokingheightmodel, "smokesmoker", level = 0.95)
+
+```
+
+-   The confidence interval is from -0.109 to 0.122
+
+#### (g)
+
+-   The C.I. has gotten smaller and shifted lower than in question 1. This is due to adjusting for height when calculating the effect of smoking FEV. A negative value is concerning since FEV cannot be negative in people.
+
+#### (h)
+
+```{r}
+
+library(lmtest)
+
+fev_data$height_adj <- ifelse(fev_data$smoke == 'smoker', fev_data$height + 1, fev_data$height)
+
+model_smokers <- lm(fev ~ height_adj, data = subset(fev_data, smoke == 'smoker'))
+model_nonsmokers <- lm(fev ~ height, data = subset(fev_data, smoke == 'nosmoker'))
+
+coef_smokers <- coef(model_smokers)['height_adj']
+coef_nonsmokers <- coef(model_nonsmokers)['height']
+
+diff_coef <- coef_smokers - coef_nonsmokers
+
+se_diff <- sqrt(sum(coef(summary(model_smokers))['height_adj', 'Std. Error']^2,
+                    coef(summary(model_nonsmokers))['height', 'Std. Error']^2))
+
+z <- qnorm(0.975) 
+ci_lower <- diff_coef - z * se_diff
+ci_upper <- diff_coef + z * se_diff
+
+cat("95% CI for the difference:", ci_lower, "-", ci_upper, "\n")
+
+```
+
+### Question 3
+
+#### (a)
+
+-   To prove $\hat{Y}_h$ is unbiased estimator for $E[Y|X = X_h]$ we need:
+
+$$
+E[\hat{Y}_h] = E[\hat{\beta}_0 + \hat{\beta}_1X_h] = E[Y|X = X_h]
+$$
+
+-   The expected values of the estimators:
+
+$$
+E[\hat{\beta}_0] = \beta_0
+$$
+
+$$
+E[\hat{\beta}_1] = \beta_1
+$$
+
+-   Then combine them:
+
+$$
+E[\hat{Y}_h] = E[\hat{\beta}_0] + E[\hat{\beta}_1]X_h
+$$
+
+-   Showing the estimator is unbiased:
+
+$$
+E[\hat{Y}_h] = \beta_0 + \beta_1X_h
+$$
+
+#### (b)
+
+-   Variance of $\hat{\beta}_1$:
+
+$$
+\text{Var}(\hat{\beta}_1) = \frac{\sigma^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2}
+$$
+
+-   Variance of $\hat{\beta}_0$:
+
+$$
+\text{Var}(\hat{\beta}_0) = \sigma^2 \left[ \frac{1}{n} + \frac{\bar{X}^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2} \right]
+$$
+
+-   The covariance between $\bar{Y}$ and $\hat{\beta}_1$:
+
+$$
+\text{Cov}(\bar{Y}, \hat{\beta}_1) = 0
+$$
+
+-   Due to independence and identically normally distributed.
+
+-   The variance of $\text{Var}(\hat{Y}_h)$:
+
+$$
+\text{Var}(\hat{Y}_h) = Var[\hat{\beta}_0 + \hat{\beta}_1X_h]
+$$
+
+-   Since the covariance is 0:
+
+$$
+\text{Var}(\hat{Y}_h) =  Var[\hat{\beta}_0] + Var[\hat{\beta}_1X_h] 
+$$
+
+$$
+\text{Var}(\hat{Y}_h) = \sigma^2 \left[ \frac{1}{n} + \frac{\bar{X}^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2} \right] + \frac{\sigma^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2}X_h
+$$
+
+$$
+\text{Var}(\hat{Y}_h) = \sigma^2\left(\frac{1}{n} + \frac{(X_h - \bar{X})^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2}\right)
+$$
+
+#### (c)
+
+-   The error term $\epsilon$ is normally distributed:
+
+$$
+\epsilon \sim N(0, \sigma^2)
+$$
+
+-   The predicted value of $\hat{Y}_h$ at $X_h$ is normally distributed:
+
+$$
+E[\hat{Y}_h] = \beta_0 + \beta_1X_h
+$$
+
+-   Using the variance of $\hat{Y}_h$ from the last question to calculate:
+
+$$
+\hat{Y}_h \sim N\left(\beta_0 + \beta_1X_h, \sigma^2\left(\frac{1}{n} + \frac{(X_h - \bar{X})^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2}\right)\right)
+$$
+
+#### (d)
+
+-   The variance of $\hat{Y}_h$ is:
+
+$$
+\text{Var}(\hat{Y}_h) = \sigma^2 \left(\frac{1}{n} + \frac{(X_h - \bar{X})^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2}\right)
+$$
+
+-   As $X_h$ and $\bar{X}$ increase the variance of $\hat{Y}_h$ also increases. This is because ${(X_h - \bar{X})^2}$ is a numerator in our formula.
+
+#### (e)
+
+-   The numerator $\hat{Y}_h - E[Y|X = X_h]$ is the difference between the predicted value and the expected value of $Y$ given $X = X_h$ which is assumed to be 0.
+
+-   The denominator is the standard error of the prediction $\hat{Y}_h$ which we estimate using the sample variance $s^2$
+
+-   The t-distribution is used instead of the normal distribution when estimating the variance from a sample rather than knowing the true population variance.
+
+$$
+\frac{\hat{Y}_h - E[Y|X = X_h]}{\sqrt{s^2 \left( \frac{1}{n} + \frac{(X_h - \bar{X})^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2} \right)}} \sim t_{n-2}
+$$
+
+#### (f)
+
+-   The prediction interval:
+
+$$
+PI = \hat{Y}_{\text{new}} \pm t_{\alpha/2, n-2} \times SE_{\text{pred}}
+$$
+
+-   The standard error of the prediction:
+
+$$
+SE_{\text{pred}} = s \sqrt{1 + \frac{1}{n} + \frac{(X_{\text{new}} - \bar{X})^2}{\sum_{i=1}^{n}(X_i - \bar{X})^2}}
+$$
+
+#### (g)
+
+-   The prediction interval is wider than the confidence interval for the mean of $Y$ at a given $X$ because it accounts for the additional variability associated with the individual outcome $Y_{new}$ rather than the mean outcome.
+
+### Question 4
+
+#### (a)
+
+```{r}
+
+response_function <- function(x) {
+  rexp(1, 0.05/x)
+}
+
+set.seed(123)
+n <- 500
+X <- rnorm(n, 3, 1)
+Y <- rep(0, n)
+for (i in 1:n) {
+  Y[i] <- response_function(X[i])
+}
+
+plot(X, Y)
+
+```
+
+#### (b)
+
+```{r}
+
+model4 <- lm(Y ~ X)
+
+plot(X, Y, main="Scatterplot of Y vs X with Best Fit Line")
+abline(model4, col="red")
+
+residuals <- resid(model4)
+fitted_values <- fitted(model4)
+plot(fitted_values, residuals, main="Residuals vs Fitted Plot")
+abline(h=0, col="blue")
+
+```
+
+-   The Scatterplot does show the relationship between $X$ and $Y$ to be linear, but since the points do not cluster symmetrically around the line the relationship may not be perfectly linear.
+
+-   The Residuals vs Fitted plot shows a \< shape getting wider on the right hand side. This violates the assumption of constant variance.
+
+#### (c)
+
+$$ 
+Y \sim \text{Exp}(\mu) 
+$$
+
+The variance of $Y$ is:
+
+$$ 
+\text{Var}(Y) = \mu^2 
+$$
+
+The variance of the transformed variable $T(Y)$ using Taylor's expansion is approximately:
+
+$$ 
+\text{Var}(T(Y)) \approx \left( T'(\mu) \right)^2 \text{Var}(Y) 
+$$
+
+For $T(Y)$ to stabilize the variance, $\text{Var}(T(Y))$ must be constant, so we set the derivative of $\mu$ to zero:
+
+$$ 
+\frac{d}{d\mu} \text{Var}(T(Y)) = \frac{d}{d\mu} \left[ \left( T'(\mu) \right)^2 \mu^2 \right] = 0 
+$$
+
+$T(Y) = \log(Y)$. The derivative of $T(Y)$ with respect to $Y$ is:
+
+$$ 
+T'(Y) = \frac{1}{Y} 
+$$
+
+Substituting $T'(Y)$ and $\text{Var}(Y)$ into the equation:
+
+$$ 
+\text{Var}(T(Y)) \approx \left( \frac{1}{\mu} \right)^2 \mu^2 = 1 
+$$
+
+This shows that the natural logarithm is a variance stabilizing transformation for the exponential distribution, as it makes the variance of $T(Y)$ constant.
+
+#### (d)
+
+```{r}
+Y_transformed <- log(Y)
+model_transformed <- lm(Y_transformed ~ X)
+
+plot(X, Y_transformed, main="Scatterplot of log(Y) vs X")
+abline(model_transformed, col="red")
+
+residuals_transformed <- resid(model_transformed)
+fitted_values_transformed <- fitted(model_transformed)
+plot(fitted_values_transformed, residuals_transformed, main="Residuals vs Fitted for Transformed Data")
+abline(h=0, col="blue")
+
+summary(model_transformed)
+
+```
+
+-   The transformed data shows a more linear pattern on the Scatterplot. There is an observable slope without a discernible pattern.
+
+-   The Residuals vs Fitted plot is also more equal dispersed. This validates the constant variance assumption.
+
+### Question 5
+
+#### (a)
+
+-   In multiple linear regression models, $\beta_1$ represents the expected change in the dependent variable $Y$ for a change in the independent variable $X_1$ assuming all other independent variable remain constant.
+
+#### (b)
+
+$$
+\mathbf{Y} = \mathbf{X}\boldsymbol{\beta} + \boldsymbol{\varepsilon}
+$$
+
+Labels:
+
+-   $\mathbf{Y}$ is the response vector of size $n \times 1$, with each element representing the observed value of the dependent variable for each observation.
+
+-   $\mathbf{X}$ is the design matrix of size $n \times p$, which includes a column of ones for the intercept ($\beta_0$) and the values of the $p-1$ covariates for each observation.
+
+-   $\boldsymbol{\beta}$ is the coefficient vector of size $p \times 1$, containing the regression coefficients $\beta_0, \beta_1, \ldots, \beta_{p-1}$.
+
+-   $\boldsymbol{\varepsilon}$ is the error vector of size $n \times 1$, representing the random errors or residuals for each observation.
+
+Dimensions:
+
+$$
+\mathbf{Y}_{n \times 1} = \mathbf{X}_{n \times p} \boldsymbol{\beta}_{p \times 1} + \boldsymbol{\varepsilon}_{n \times 1}
+$$
+
+#### (c)
+
+-   Likelihood function:
+
+$$
+\mathcal{L}(\boldsymbol{\beta}, \sigma^2 | \mathbf{Y}, \mathbf{X}) = \prod_{i=1}^{n} \frac{1}{\sqrt{2\pi\sigma^2}} \exp\left(-\frac{(Y_i - \mathbf{X}_i^T\boldsymbol{\beta})^2}{2\sigma^2}\right)
+$$
+
+-   Log-likelihood function:
+
+$$
+\ell(\boldsymbol{\beta}, \sigma^2 | \mathbf{Y}, \mathbf{X}) = \sum_{i=1}^{n} \left( -\frac{1}{2}\log(2\pi\sigma^2) - \frac{(Y_i - \mathbf{X}_i^T\boldsymbol{\beta})^2}{2\sigma^2} \right)
+$$
+
+$$
+\ell(\boldsymbol{\beta}, \sigma^2 | \mathbf{Y}, \mathbf{X}) = -\frac{n}{2}\log(2\pi) - \frac{n}{2}\log(\sigma^2) - \frac{1}{2\sigma^2}\sum_{i=1}^{n}(Y_i - \mathbf{X}_i^T\boldsymbol{\beta})^2
+$$
+
+#### (d)
+
+-   Start with the log-likelihood from last question: $$
+    \ell(\boldsymbol{\beta}, \sigma^2 | \mathbf{Y}, \mathbf{X}) = -\frac{n}{2}\log(2\pi) - \frac{n}{2}\log(\sigma^2) - \frac{1}{2\sigma^2}\sum_{i=1}^{n}(Y_i - \mathbf{X}_i^T\boldsymbol{\beta})^2
+    $$
+
+-   Partial derivative with respect to beta of the sum of squared residuals: $$
+    \frac{\partial}{\partial \boldsymbol{\beta}}\sum_{i=1}^{n}(Y_i - \mathbf{X}_i^T\boldsymbol{\beta})^2 = -2\sum_{i=1}^{n} \mathbf{X}_i(Y_i - \mathbf{X}_i^T\boldsymbol{\beta})
+    $$
+
+-   Partial derivative of the log-likelihood function: $$
+    \frac{\partial \ell(\boldsymbol{\beta}, \sigma^2 | \mathbf{Y}, \mathbf{X})}{\partial \boldsymbol{\beta}} = \frac{1}{\sigma^2}\sum_{i=1}^{n} \mathbf{X}_i(Y_i - \mathbf{X}_i^T\boldsymbol{\beta})
+    $$
+
+-   Partial derivative in matrix notation: $$
+    \frac{\partial \ell(\boldsymbol{\beta}, \sigma^2 | \mathbf{Y}, \mathbf{X})}{\partial \boldsymbol{\beta}} = \frac{1}{\sigma^2}\mathbf{X}^T(\mathbf{Y} - \mathbf{X}\boldsymbol{\beta})
+    $$
+
+#### (e)
+
+-   Set the derivative equal to zero:
+
+$$
+\mathbf{X}^T(\mathbf{Y} - \mathbf{X}\boldsymbol{\beta}) = 0
+$$
+
+-   Expand the equation:
+
+$$
+\mathbf{X}^T\mathbf{Y} - \mathbf{X}^T\mathbf{X}\boldsymbol{\beta} = 0
+$$
+
+-   Isolate beta:
+
+$$
+\mathbf{X}^T\mathbf{X}\boldsymbol{\beta} = \mathbf{X}^T\mathbf{Y}
+$$
+
+-   Multiply both sides by the inverse:
+
+$$
+\boldsymbol{\beta} = (\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T\mathbf{Y}
+$$
+
+#### (f)
+
+-   Start with the MLE of $\beta$ which is:
+
+$$
+\boldsymbol{\hat{\beta}} = (\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T\mathbf{Y}
+$$
+
+$$
+\text{Var}(\hat{\boldsymbol{\beta}}) = (\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T \text{Var}(\boldsymbol{\varepsilon}) \mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}
+$$
+
+$$
+\text{Var}(\hat{\boldsymbol{\beta}}) = (\mathbf{X}^T\mathbf{X})^{-1}\mathbf{X}^T (\sigma^2 I) \mathbf{X}(\mathbf{X}^T\mathbf{X})^{-1}
+$$
+
+$$
+\text{Var}(\hat{\boldsymbol{\beta}}) = \sigma^2 (\mathbf{X}^T\mathbf{X})^{-1}
+$$
+
+#### (g)
+
+-   Expected value of $Y$ given $X = X_h$:
+
+$$
+E[Y | X = X_h] = \beta_0 + \beta_1X_{h1} + \ldots + \beta_{p-1}X_{h,p-1}
+$$
+
+-   Variance of $Y$ given $X = X_h$:
+
+$$
+\text{Var}(Y | X = X_h) = \sigma^2 \left(1 + \frac{1}{n} + \frac{(X_h - \bar{X})^T(X_h - \bar{X})}{\sum_{i=1}^{n}(X_i - \bar{X})^T(X_i - \bar{X})}\right)
+$$
+
+-   Distribution of $Y$ given $X = X_h$:
+
+$$
+Y | X = X_h \sim \mathcal{N}\left(E[Y | X = X_h], \text{Var}(Y | X = X_h)\right)
+$$
+
+#### (h)
+
+-   Expected value of $\hat{Y}$:
+
+$$
+E[\hat{Y}_h] = \mathbf{X}_h^T\boldsymbol{\beta}
+$$
+
+-   Variance of the estimated coefficients $\hat{\beta}$:
+
+$$
+\text{Var}(\hat{\boldsymbol{\beta}}) = \sigma^2 (\mathbf{X}^T\mathbf{X})^{-1}
+$$
+
+-   Variance of Y hat as a linear combination of the estimated coefficients $\hat{\beta}$:
+
+$$
+\text{Var}(\hat{Y}_h) = \mathbf{X}_h^T \text{Var}(\hat{\boldsymbol{\beta}}) \mathbf{X}_h
+$$
+
+-   Substituting the variance of $\hat{\beta}$ into the variance of $\hat{Y}$:
+
+$$
+\text{Var}(\hat{Y}_h) = \sigma^2 \mathbf{X}_h^T (\mathbf{X}^T\mathbf{X})^{-1} \mathbf{X}_h
+$$
+
+-   Distribution of $Y$ hat given $X_h$:
+
+$$
+\hat{Y}_h | X_h \sim \mathcal{N}\left(\mathbf{X}_h^T\boldsymbol{\beta}, \sigma^2 \mathbf{X}_h^T (\mathbf{X}^T\mathbf{X})^{-1} \mathbf{X}_h\right)
+$$

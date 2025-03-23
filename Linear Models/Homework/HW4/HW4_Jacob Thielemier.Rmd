@@ -1,0 +1,254 @@
+---
+title: 'Homework 4'
+author: "Jacob Thielemier"
+date: "30 April 2024"
+output: pdf_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	results = 'hide'
+)
+```
+
+## Question 1
+
+-   The Student Performance Dataset is a dataset designed to examine the factors influencing academic student performance. The dataset consists of 10,000 student records with the outcome measure being a Performance Index rating of 0-100. The covariates measured are: Hours Studied, Previous Scores, Extracurricular Activities, Sleep Hours, and Sample Question Papers Practiced.
+
+## Question 2
+
+-   Question 1: How does the number of Hours Studied influence the students performance?
+-   Question 2: What is the interaction of Hours Studied with Hours Slept and how does this influence the students performance?
+
+## Question 3
+
+-   Alhazmi, E., & Sheneamer, A. (2023). Early Predicting of Students Performance in Higher Education. IEEE Access, 11. <https://doi.org/10.1109/ACCESS.2023.3250702>
+
+-   O., O., & P., C. (2017). Predicting Students’ Academic Performances – A Learning Analytics Approach using Multiple Linear Regression. International Journal of Computer Applications, 157(4). <https://doi.org/10.5120/ijca2017912671>
+
+-   Yang, S. J. H., Lu, O. H. T., Huang, A. Y. Q., Huang, J. C. H., Ogata, H., & Lin, A. J. Q. (2018). Predicting students’ academic performance using multiple linear regression and principal component analysis. Journal of Information Processing, 26. <https://doi.org/10.2197/ipsjjip.26.170>
+
+## Question 4
+
+-   The covariates Extracurricular Activities and Sample Question Papers Practiced are going to be included as potential confounders. Since we are physically limited in the number or hours in a day, we should be able to see the impact of the confounders on Hours Studied and how that influences the overall Students Performance.
+
+## Question 5
+
+-   The dataset was collected from 10,000 highschool senior students. The students were from multiple school districts throughout the country. We do not know the sex, race, or geographic loaciton of the students, but we do know they are all the same age.
+
+## Question 6
+
+-   I added a boxplot to give us a better visual of the data. We can interrpret the median Student Performance better at each of the Hours Slept.
+
+```{r results='asis'}
+library(ggplot2)
+library(dplyr)
+
+dat <- read.csv("C:\\Users\\JThie\\OneDrive\\Desktop\\Spring 24\\Linear Models\\Homework\\HW4\\Student_Performance.csv")
+
+ggplot(dat) + 
+  geom_point(aes(x = Sleep.Hours, y = Performance.Index, alpha = 0.5)) + 
+  labs(x = "Hours Slept", y = "Student Performance", title = "Scatterplot of Student Performance by Hours Slept") +
+  theme_bw()
+
+ggplot(dat, aes(x = as.factor(Sleep.Hours), y = Performance.Index)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Student Performance by Hours Slept", 
+       x = "Hours Slept",
+       y = "Student Performance") +
+  theme_bw()
+```
+
+## Question 7
+
+### Part (a)
+
+```{r}
+dat1 <- read.csv("C:\\Users\\JThie\\OneDrive\\Desktop\\Spring 24\\Linear Models\\Homework\\HW3\\framingham.csv")
+
+fit1 <- lm(sysBP ~ TenYearCHD + male, data = dat1)
+summary(fit1)
+
+conf_intervals <- confint(fit1)
+print(conf_intervals)
+```
+
+```{r results='asis'}
+results1 <- data.frame(
+  Term = c("Intercept", "Ten Year CHD", "Male"),
+  Estimate = c(131.3507, 13.5822, -2.4673),
+  `Std. Error` = c(0.4515, 0.9228, 0.6691),
+  `t value` = c(290.911, 14.718, -3.687),
+  `P value` = c("< 0.001", "< 0.001", "< 0.001"),
+  `Lower C.I.` = c(130.465523, 11.773003, -3.779178),
+  `Upper C.I.` = c(132.235937, 15.391342, -1.155452)
+)
+
+knitr::kable(
+  results1, 
+  digits = c(NA, 3, 3, 3, NA, 3, 3),
+  caption = "Main Effect Model"
+)
+```
+
+### Part (b)
+
+```{r}
+fit2 <- lm(sysBP ~ TenYearCHD + male + TenYearCHD:male, data = dat1)
+summary(fit2)
+
+conf_intervals2 <- confint(fit2)
+print(conf_intervals2)
+```
+
+```{r results='asis'}
+results2 <- data.frame(
+  Term = c("Intercept", "Ten Year CHD", "Male", "Ten Year CHD:Male"),
+  Estimate = c(131.0901, 15.6773, -1.8329, -4.0789),
+  `Std. Error` = c(0.4665, 1.3226, 0.7278, 1.8454),
+  `t value` = c(281.035, 11.853, -2.518, -2.210),
+  `P value` = c("< 0.001", "< 0.001", "0.012", "0.027"),
+  `Lower C.I.` = c(130.175640, 13.084281, -3.259785, -7.696928),
+  `Upper C.I.` = c(132.0046333, 18.2703285, -0.4059321, -0.4608684)
+)
+
+knitr::kable(
+  results2, 
+  digits = c(NA, 3, 3, 3, NA, 3, 3),
+  caption = "Interaction Effect Model"
+)
+```
+
+### Part (c)
+
+-   We can see the change between the two model results in the P-value of Male. There is a slight increase in P-value in the interaction effect model. We also see that the confidence interval is smaller male. The confidence interval for Ten Year CHD also shifted higher.
+
+### Part (d)
+
+-   We can interpret from the box plot by comparing the means of the boxes for the sex and yes/no CHD. We can see that the median for Yes CHD is different between males and females. This indicates that there is an interaction effect since the medians are different. We can also see that females have a few more outliers based on yes/no CHD indicating a potential interaction effect.
+
+```{r results='asis'}
+ggplot(dat1, aes(x = factor(male), y = sysBP, fill = factor(TenYearCHD))) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Systolic Blood Pressure by Gender", 
+       x = "Gender (0 = Female, 1 = Male)",
+       y = "Systolic Blood Pressure") +
+  scale_fill_manual(values = c("blue", "red"), 
+                    labels = c("No CHD", "Yes CHD"),
+                    name = "Ten Year CHD") +
+  theme_bw()
+```
+
+## Question 8
+
+The linear model is given by:
+
+$$ y_i = \beta_0 + \beta_1x_{i1} + \beta_2x_{i2} + \beta_3(x_{i1} * x_{i2}) + \varepsilon_i, \quad \varepsilon_i \sim N(0, \sigma^2) $$
+
+Here, $x_{i2}$ is a binary covariate. We want to calculate the variance of the estimator for the difference in means of two observations, where observation A has $x_{A2} = 1$ and $x_{A1} = 1$, and observation B has $x_{B2} = 0$ and $x_{B1} = 1$.
+
+$$ E[A|x_{a2}=1] = \beta_0 + \beta_1x_{a1} + \beta_2 = \beta_3x_{a1}  $$
+$$ E[B|x_{b2}=0] = \beta_0 + \beta_1x_{b1}  $$
+$$ E[A-B] = \hat{\beta_1} + \hat{\beta_2} + \hat{\beta_3x_{a1}} $$
+This follows the distribution of $$ \hat{\beta} \sim N(\beta, \sigma^2(X^tX)^{-1})   $$
+
+## Question 9
+
+```{r results='asis'}
+library(MASS)
+
+generate_data <- function(n, beta0, beta1, sigma_sq) {
+  x <- rnorm(n, 0, 1)
+  y <- beta0 + beta1 * x + rnorm(n, 0, sqrt(sigma_sq))
+  data2 <- data.frame(x = x, y = y)
+  return(data2)
+}
+
+simulation_analysis <- function(reps, n, beta0, beta1, sigma_sq) {
+  test_results <- rep(NA, reps)
+  
+  for (rep in 1:reps) {
+    data2 <- generate_data(n, beta0, beta1, sigma_sq)
+    fit <- lm(y ~ x, data = data2)
+    P_val <- summary(fit)$coefficients["x", "Pr(>|t|)"]
+    test_results[rep] <- (P_val < 0.05)
+  }
+  
+  pow <- mean(test_results)
+  return(pow)
+}
+
+beta0 <- -1
+beta1 <- 0.25
+sigma_sq <- 0.7
+
+n_seq <- seq(50, 250, by = 50)
+power_results <- sapply(n_seq, function(n) {
+  simulation_analysis(reps = 500, n = n, beta0 = beta0, beta1 = beta1, sigma_sq = sigma_sq)
+})
+
+dat_sim <- data.frame(
+  n = n_seq,
+  power = power_results
+)
+
+ggplot(dat_sim, aes(x = n, y = power)) + 
+  geom_line() + 
+  geom_point() +
+  labs(title = "Power Curve", x = "Sample Size", y = "Power") +
+  theme_bw()
+```
+
+## Question 10
+
+```{r results='asis'}
+generate_data <- function(n, beta0, beta1, beta2, beta3, sigma_sq) {
+  x1 <- rnorm(n, 0, 1)
+  x2 <- rnorm(n, 0, 1)
+    interaction <- x1 * x2
+  y <- beta0 + beta1 * x1 + beta2 * x2 + beta3 * interaction + rnorm(n, 0, sqrt(sigma_sq))
+  data <- data.frame(x1 = x1, x2 = x2, y = y)
+  return(data)
+}
+
+simulation_analysis <- function(reps, n, beta0, beta1, beta2, beta3, sigma_sq) {
+  test_results <- rep(NA, reps)
+  
+  for (rep in 1:reps) {
+    data <- generate_data(n, beta0, beta1, beta2, beta3, sigma_sq)
+    fit <- lm(y ~ x1 * x2, data = data)
+    p_val <- summary(fit)$coefficients["x1:x2", "Pr(>|t|)"]
+    test_results[rep] <- (p_val < 0.05)
+  }
+  
+  power <- mean(test_results)
+  return(power)
+}
+
+beta0 <- -1
+beta1 <- 0.25
+beta2 <- 0.1
+beta3 <- 0.2
+sigma_sq <- 0.7
+
+n_seq <- seq(50, 250, by = 50)
+
+power_results <- sapply(n_seq, function(n) {
+  simulation_analysis(reps = 500, n = n, beta0 = beta0, beta1 = beta1, beta2 = beta2, beta3 = beta3, sigma_sq = sigma_sq)
+})
+
+dat_sim <- data.frame(
+  n = n_seq,
+  power = power_results
+)
+
+ggplot(dat_sim, aes(x = n, y = power)) + 
+  geom_line() + 
+  geom_point() +
+  labs(title = "Power Curve for Interaction Effect", x = "Sample Size", y = "Power") +
+  theme_bw()
+```
