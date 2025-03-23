@@ -1,0 +1,828 @@
+---
+title: "Homework 1"
+author: "Jacob Thielemier"
+date: "2025-02-15"
+output: pdf_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+  cache = TRUE,
+  echo = FALSE,
+  error = FALSE,
+  message = FALSE,
+  warning = FALSE,
+  results = "markup"
+)
+```
+
+## Question 1
+
+### Part a.
+
+```{r}
+library(MASS) 
+library(knitr) 
+library(kableExtra)
+set.seed(123)
+
+# Function to simulate the MSE for covariance estimation
+simulate_MSE <- function(n, p, Sigma, n_iter = 5000) {
+  mse_vec <- numeric(n_iter)
+  
+  for (i in 1:n_iter) {
+    # Generate an n x p data matrix from N(0, Sigma)
+    X <- mvrnorm(n = n, mu = rep(0, p), Sigma = Sigma)
+    
+    # Compute the sample covariance matrix (using denominator n-1)
+    S <- cov(X)
+    
+    # Compute the MSE: average squared difference between S and Sigma
+    mse_vec[i] <- mean((S - Sigma)^2)
+  }
+  
+  # Return the average MSE over all iterations
+  return(mean(mse_vec))
+}
+
+p <- 10
+Sigma <- diag(p)  # 10 x 10 identity covariance matrix
+n_values <- c(25, 50, 100, 500)
+
+# Compute MSE for each sample size n
+mse_results <- sapply(n_values, function(n) simulate_MSE(n, p, Sigma, n_iter = 5000))
+
+# Create a data frame with the results
+results_df <- data.frame("Sample Size (n)" = n_values, "MSE" = mse_results)
+
+# Print the results in a clean, formatted table
+kable(results_df, 
+      caption = "MSE for Different Sample Sizes (p = 10, Identity Covariance)",
+      digits = 6)
+
+# Plot the results: MSE vs n
+plot(n_values, mse_results, type = "b", pch = 19, col = "blue",
+     xlab = "Sample Size (n)",
+     ylab = "Mean Squared Error (MSE)",
+     main = "MSE vs n for p = 10 (Identity Covariance)")
+```
+
+### Part b.
+
+**Note: I had processing issues with so many iterations so I changed it to use 5000 iterations for p \<= 100, and 500 for p \> 100**
+
+```{r}
+n <- 100
+p_values <- c(10, 50, 100, 500)
+mse_results <- numeric(length(p_values))
+
+# Loop over different values of p
+for (i in seq_along(p_values)) {
+  p <- p_values[i]
+  Sigma <- diag(p)
+  n_iter <- 5000
+  mse_results[i] <- simulate_MSE(n, p, Sigma, n_iter = n_iter)
+}
+
+# Create a data frame with the results
+results_df <- data.frame(
+  "Dimension (p)" = p_values,
+  "MSE" = mse_results
+)
+
+# Display the table
+kable(results_df, 
+      caption = "MSE for Different Dimensions (n = 100, Identity Covariance)",
+      digits = 6)
+
+# Plot the results
+plot(p_values, mse_results, type = "b", pch = 19, col = "blue",
+     xlab = "Dimension (p)",
+     ylab = "Mean Squared Error (MSE)",
+     main = "MSE vs p for n = 100 (Identity Covariance)")
+
+```
+
+### Part c.
+
+```{r}
+# Function to create an AR(1) covariance matrix given dimension p and correlation rho
+ar1_cov <- function(p, rho) {
+  # Create a matrix with (i, j) entry equal to rho^|i-j|
+  outer(1:p, 1:p, FUN = function(i, j) rho^abs(i - j))
+}
+
+p_fixed <- 10
+rho_fixed <- 1/sqrt(p_fixed)  # For p = 10, rho = 1/sqrt(10)
+Sigma_ar_fixed <- ar1_cov(p_fixed, rho_fixed)
+n_values <- c(25, 50, 100, 500)
+
+# Compute MSE for each sample size n.
+mse_c1 <- sapply(n_values, function(n) {
+  n_iter <- 5000
+  simulate_MSE(n, p_fixed, Sigma_ar_fixed, n_iter = n_iter)
+})
+
+# Create a data frame with the results for part (c1)
+results_c1 <- data.frame("Sample Size (n)" = n_values, "MSE" = mse_c1)
+
+# Print the table for part (c1)
+kable(results_c1, 
+      caption = "MSE for Different Sample Sizes (p = 10, AR(1) Covariance with rho = 1/sqrt(10))",
+      digits = 6)
+
+# Plot the results for part (c1)
+plot(n_values, mse_c1, type = "b", pch = 19, col = "red",
+     xlab = "Sample Size (n)",
+     ylab = "Mean Squared Error (MSE)",
+     main = "MSE vs n for p = 10 (AR(1) Covariance)")
+```
+
+```{r}
+n_fixed <- 100
+p_values <- c(10, 50, 100, 500)
+mse_c2 <- numeric(length(p_values))
+
+# For each p, set rho = 1/sqrt(p), create the AR(1) covariance matrix, and compute the MSE.
+for (i in seq_along(p_values)) {
+  p_current <- p_values[i]
+  n_iter <- 5000
+  rho_current <- 1/sqrt(p_current)
+  Sigma_ar_current <- ar1_cov(p_current, rho_current)
+  mse_c2[i] <- simulate_MSE(n_fixed, p_current, Sigma_ar_current, n_iter = n_iter)
+}
+
+# Create a data frame with the results for part (c2)
+results_c2 <- data.frame("Dimension (p)" = p_values, "MSE" = mse_c2)
+
+# Print the table for part (c2)
+kable(results_c2, 
+      caption = "MSE for Different Dimensions (n = 100, AR(1) Covariance with rho = 1/sqrt(p))",
+      digits = 6)
+
+# Plot the results for part (c2)
+plot(p_values, mse_c2, type = "b", pch = 19, col = "blue",
+     xlab = "Dimension (p)",
+     ylab = "Mean Squared Error (MSE)",
+     main = "MSE vs p for n = 100 (AR(1) Covariance)")
+```
+
+## Question 2
+
+### Part a.
+
+```{r}
+# Define the covariance matrix \Sigma
+Sigma <- matrix(c(2, 0.3,
+                  0.3, 1), nrow = 2, byrow = TRUE)
+
+# Compute eigenvalues and eigenvectors
+eig <- eigen(Sigma)
+eigenvalues <- eig$values
+eigenvectors <- eig$vectors
+
+# Create a data frame with the results.
+results_df <- data.frame(
+  Component     = c("Major Axis", "Minor Axis"),
+  Eigenvalue    = round(eigenvalues, 3),
+  Eigenvector_1 = round(eigenvectors[1, ], 3),
+  Eigenvector_2 = round(eigenvectors[2, ], 3)
+)
+
+# Print the table using kable and add some styling
+kable(results_df, caption = "Spectral Decomposition of Sigma", align = "c") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE)
+```
+
+### Part b.
+
+```{r}
+# Create a sequence of angles to generate a unit circle
+theta <- seq(0, 2 * pi, length.out = 100)
+unit_circle <- rbind(cos(theta), sin(theta))  # 2 x 100 matrix
+
+# Transform the unit circle into the ellipse.
+ellipse <- eigenvectors %*% diag(sqrt(eigenvalues)) %*% unit_circle
+
+# Compute the endpoints for the principal axes.
+major_axis <- eigenvectors[, 1] * sqrt(eigenvalues[1])
+minor_axis <- eigenvectors[, 2] * sqrt(eigenvalues[2])
+
+# Plot the ellipse and the principal axes.
+plot(ellipse[1, ], ellipse[2, ], type = "l", lwd = 2,
+     xlab = "X", ylab = "Y", asp = 1,
+     main = "1-Sigma Ellipse for Sigma")
+# Add arrows for the axes. 
+arrows(0, 0, major_axis[1], major_axis[2], col = "green", lwd = 2, length = 0.1)
+arrows(0, 0, minor_axis[1], minor_axis[2], col = "red", lwd = 2, length = 0.1)
+legend("topright", legend = c("Ellipse", "Major Axis", "Minor Axis"),
+       col = c("black", "green", "red"), lty = c(1, 1, 1), lwd = 2)
+```
+
+### Part c.
+
+```{r}
+set.seed(0) 
+
+samples <- mvrnorm(n = 250, mu = c(0, 0), Sigma = Sigma)
+
+# Create a new plot: first plot the sampled points
+plot(samples, asp = 1, col = rgb(0, 0, 1, 0.5), pch = 16,
+     xlab = "X", ylab = "Y", main = "Samples from N(0, Sigma) with 1-Sigma Ellipse")
+# Overlay the ellipse
+lines(ellipse[1, ], ellipse[2, ], lwd = 2, col = "black")
+# Add the principal axes as arrows
+arrows(0, 0, major_axis[1], major_axis[2], col = "green", lwd = 2, length = 0.1)
+arrows(0, 0, minor_axis[1], minor_axis[2], col = "red", lwd = 2, length = 0.1)
+legend("topright", legend = c("Samples", "Ellipse", "Major Axis", "Minor Axis"),
+       col = c(rgb(0, 0, 1, 0.5), "black", "green", "red"),
+       pch = c(16, NA, NA, NA), lty = c(NA, 1, 1, 1), lwd = c(NA, 2, 2, 2))
+```
+
+## Question 3
+
+### Part a.
+
+```{r}
+data(attitude)
+
+# Fit the multiple linear regression model
+lm_model <- lm(rating ~ ., data = attitude)
+
+# Compute the 95% confidence interval for the "complaints" coefficient
+conf_int <- confint(lm_model, "complaints", level = 0.95)
+
+# Convert to a data frame for cleaner formatting
+conf_int_df <- data.frame(
+  Variable = "Complaints",
+  Lower_Bound = round(conf_int[1, 1], 3),
+  Upper_Bound = round(conf_int[1, 2], 3)
+)
+
+# Display the confidence interval in a formatted table
+kable(conf_int_df, 
+      caption = "95% Confidence Interval for Complaints Coefficient",
+      align = "c")
+```
+
+### Part b.
+
+Based off the elbow in the scree plot below I should keep two PCs.
+
+```{r}
+pca <- prcomp(attitude[,2:7], scale. = TRUE)
+screeplot(pca, type = "lines")
+```
+
+### Part c.
+
+```{r}
+# Perform PCA on the six covariates (scaling is recommended)
+pca <- prcomp(attitude[, c("complaints", "privileges", "learning", 
+                           "raises", "critical", "advance")],
+              scale. = TRUE)
+
+# Extract the first principal component (PC1)
+pc1 <- pca$x[, 1]
+
+# Fit the linear regression model: rating ~ PC1
+pc.lm <- lm(rating ~ pc1, data = attitude)
+
+# Compute the 95% confidence interval for the PC1 coefficient
+ci_pc1 <- confint(pc.lm, "pc1", level = 0.95)
+
+# Convert the confidence interval matrix to a data frame and display using kable
+kable(as.data.frame(ci_pc1), digits = 3, 
+      caption = "95% Confidence Interval for the Effect of PC1")
+
+```
+
+### Part d.
+
+Using the table below and comparing to Part .a I get an estimated coefficient for complaints of –0.216 and a 95% C.I. of (–0.39, –0.04). In Part d. I use the loading of complaints from the PCA and the 95% C.I. from PC1. I get a 95% C.I. for the effect of complaints of (–0.38, –0.06).
+
+This small difference in the C.I.'s means using PC1 to represent the covariates retains much of the information of complaints and provides an effect estimate that aligns well with the full model.
+
+```{r}
+# Extract the PC1 loading for 'complaints'
+a_complaints <- pca$rotation["complaints", 1]  # PC1 is the first column
+
+# Compute the 95% confidence interval for the effect of 'complaints'
+ci_complaints <- a_complaints * ci_pc1
+
+# Convert to a data frame for display
+ci_complaints_df <- as.data.frame(ci_complaints)
+colnames(ci_complaints_df) <- c("Lower Bound", "Upper Bound")
+rownames(ci_complaints_df) <- "Complaints (From PC1 Model)"
+
+# Display the confidence interval using kable
+kable(ci_complaints_df, digits = 3,
+      caption = "95% Confidence Interval for the Effect of 'Complaints' Based on PC1")
+```
+
+## Question 4
+
+### 2.6
+
+```{r}
+library(ggplot2)
+
+# Function to plot confidence ellipses
+plot_ellipse <- function(mu_x, mu_y, sigma_x2, sigma_y2, rho, color, label) {
+  sigma_x <- sqrt(sigma_x2)
+  sigma_y <- sqrt(sigma_y2)
+  
+  Sigma <- matrix(c(sigma_x2, rho * sigma_x * sigma_y,
+                    rho * sigma_x * sigma_y, sigma_y2), nrow = 2)
+  
+  mean_vec <- c(mu_x, mu_y)
+  
+  # Compute the ellipse points
+  ellipse_points <- mvrnorm(n = 500, mu = mean_vec, Sigma = Sigma)
+  
+  # Convert to data frame
+  df <- data.frame(x = ellipse_points[,1], y = ellipse_points[,2])
+  
+  # Plot the ellipse
+  ggplot(df, aes(x, y)) +
+    geom_point(alpha = 0.1, color = color) +
+    stat_ellipse(level = 0.95, geom = "path", color = color, size = 1.2) +
+    ggtitle(label) +
+    theme_minimal() +
+    coord_fixed()
+}
+
+# Define parameters for each case
+params <- list(
+  list(mu_x = 1, mu_y = 2, sigma_x2 = 1, sigma_y2 = 1, rho = 0, color = "red", label = "(a)"),
+  list(mu_x = 0, mu_y = 0, sigma_x2 = 1, sigma_y2 = 1, rho = 0, color = "blue", label = "(b)"),
+  list(mu_x = 0, mu_y = 0, sigma_x2 = 1, sigma_y2 = 1, rho = 0.2, color = "green", label = "(c)"),
+  list(mu_x = 0, mu_y = 0, sigma_x2 = 1, sigma_y2 = 1, rho = 0.8, color = "purple", label = "(d)"),
+  list(mu_x = 0, mu_y = 0, sigma_x2 = 4, sigma_y2 = 1, rho = 0.8, color = "orange", label = "(e)")
+)
+
+# Generate plots
+for (p in params) {
+  print(plot_ellipse(p$mu_x, p$mu_y, p$sigma_x2, p$sigma_y2, p$rho, p$color, p$label))
+}
+
+```
+
+### 2.10
+
+Need to show that the principal axes of the bivariate normal distribution lie along the $45^\circ$ and $135^\circ$ lines, with lengths $2\sqrt{c(1+\rho)}$ and $2\sqrt{c(1-\rho)}$
+
+The covariance matrix for a bivariate normal distribution with correlation $\rho$ is:
+
+$$
+\Sigma =
+\begin{bmatrix}
+c & \rho c \\
+\rho c & c
+\end{bmatrix}
+$$
+
+To find the principal axes, compute the eigenvalues and eigenvectors of $\Sigma$.
+
+The equation of $\Sigma$ is:
+
+$$
+\det \begin{bmatrix}
+c - \lambda & \rho c \\
+\rho c & c - \lambda
+\end{bmatrix} = 0.
+$$
+
+Expanding the determinant:
+
+$$
+(c - \lambda)^2 - (\rho c)^2 = 0
+$$
+
+$$
+(c - \lambda - \rho c)(c - \lambda + \rho c) = 0.
+$$
+
+Solving for $\lambda$, obtain:
+
+$$
+\lambda_1 = c(1 + \rho), \quad \lambda_2 = c(1 - \rho).
+$$
+
+These eigenvalues represent the variances along the principal directions.
+
+To find the eigenvectors:
+
+$$
+\begin{bmatrix}
+c - \lambda & \rho c \\
+\rho c & c - \lambda
+\end{bmatrix}
+\begin{bmatrix}
+v_1 \\
+v_2
+\end{bmatrix} = 0.
+$$
+
+For $\lambda_1 = c(1+\rho)$:
+
+$$
+\begin{bmatrix}
+c - c(1+\rho) & \rho c \\
+\rho c & c - c(1+\rho)
+\end{bmatrix}
+\begin{bmatrix}
+v_1 \\
+v_2
+\end{bmatrix} = 0.
+$$
+
+$$
+\begin{bmatrix}
+- c\rho & \rho c \\
+\rho c & - c\rho
+\end{bmatrix}
+\begin{bmatrix}
+v_1 \\
+v_2
+\end{bmatrix} = 0.
+$$
+
+Setting $v_1 = v_2$, the eigenvector is:
+
+$$
+\mathbf{v}_1 = \frac{1}{\sqrt{2}} \begin{bmatrix} 1 \\ 1 \end{bmatrix}.
+$$
+
+For $\lambda_2 = c(1-\rho)$, the eigenvector is:
+
+$$
+\mathbf{v}_2 = \frac{1}{\sqrt{2}} \begin{bmatrix} 1 \\ -1 \end{bmatrix}.
+$$
+
+The eigenvectors indicate that the principal axes lie along the directions:
+
+-   $45^\circ$ (eigenvector $\mathbf{v}_1$)
+-   $135^\circ$ (eigenvector $\mathbf{v}_2$)
+
+Define the transformation:
+
+$$
+y_1 = \frac{z_1 + z_2}{\sqrt{2}}, \quad y_2 = \frac{z_1 - z_2}{\sqrt{2}}.
+$$
+
+This transformation rotates the coordinate system to align with the principal axes.
+
+The standard deviations along the principal axes are:
+
+$$
+\sigma_1 = \sqrt{\lambda_1} = \sqrt{c(1+\rho)},
+$$
+
+$$
+\sigma_2 = \sqrt{\lambda_2} = \sqrt{c(1-\rho)}.
+$$
+
+The principal axes of the ellipse are:
+
+$$
+2\sigma_1 = 2\sqrt{c(1+\rho)}, \quad 2\sigma_2 = 2\sqrt{c(1-\rho)}.
+$$
+
+### 2.12
+
+Need to show that if:
+
+$$
+\Pr(X \geq 0, Y \geq 0) = \alpha
+$$
+
+For the bivariate normal distribution:
+
+$$
+N \left( 
+\begin{bmatrix} 
+0 \\ 0 
+\end{bmatrix}, 
+\begin{bmatrix} 
+1 & \rho \\ 
+\rho & 1 
+\end{bmatrix} 
+\right),
+$$
+
+Then the correlation coefficient $\rho$ is:
+
+$$
+\rho = \cos(1 - 2\alpha) \pi.
+$$
+
+Define new random variables:
+
+$$
+X = U, \quad Y = \rho U + \sqrt{1 - \rho^2} V,
+$$
+
+Where $U \sim N(0,1)$ and $V \sim N(0,1)$ are independent standard normal variables.
+
+The probability I want is:
+
+$$
+\Pr(X \geq 0, Y \geq 0) = \alpha.
+$$
+
+The chance of both values being positive in a bivariate normal distribution is $\alpha$.
+
+Because the joint normal distribution is symmetric, the probability relates to an angle $\theta$, with the first quadrant as a sector. A known formula gives:
+
+$$
+\Pr(X \geq 0, Y \geq 0) = \frac{1}{4} + \frac{1}{2\pi} \tan^{-1} \rho.
+$$
+
+Setting this equal to $\alpha$:
+
+$$
+\frac{1}{4} + \frac{1}{2\pi} \tan^{-1} \rho = \alpha.
+$$
+
+### 2.25
+
+#### (a)
+
+To determine the rank of $\Sigma$, compute its determinant:
+
+$$
+\det(\Sigma) = (4 \cdot 1) - (2 \cdot 2) = 4 - 4 = 0.
+$$
+
+Since the determinant is zero, the matrix is singular, meaning at least one eigenvalue is zero.
+
+Find the eigenvalues $\lambda$ by solving:
+
+$$
+\det\left( \Sigma - \lambda I \right) = 0.
+$$
+
+$$
+\begin{vmatrix} 4 - \lambda & 2 \\ 2 & 1 - \lambda \end{vmatrix} = (4-\lambda)(1-\lambda) - (2 \cdot 2) = 4 - 4\lambda + \lambda - \lambda^2 - 4 = -\lambda^2 + 3\lambda.
+$$
+
+Setting this to zero:
+
+$$
+-\lambda^2 + 3\lambda = 0
+$$
+
+$$
+\lambda(\lambda - 3) = 0.
+$$
+
+The eigenvalues are $\lambda_1 = 3$ and $\lambda_2 = 0$. Since there is exactly one nonzero eigenvalue, the rank of $\Sigma$ is 1.
+
+#### (b)
+
+Since $\Sigma$ has rank 1, its columns are linearly dependent. Show the columns as multiples of a single vector. The covariance matrix shows that:
+
+$$
+\Sigma = \begin{bmatrix} 4 \\ 2 \end{bmatrix} \begin{bmatrix} 4 & 2 \end{bmatrix}.
+$$
+
+Choosing:
+
+$$
+a = \begin{bmatrix} 2 \\ 1 \end{bmatrix},
+$$
+
+Define $Y$ as a standard normal variable with variance 1:
+
+$$
+Y \sim N(0,1).
+$$
+
+Since $X = a' Y$, the density of $Y$ is the standard normal density:
+
+$$
+f_Y(y) = \frac{1}{\sqrt{2\pi}} e^{-y^2/2}, \quad y \in \mathbb{R}.
+$$
+
+## Question 5
+
+### 11.1
+
+The characteristic equation is found by solving:
+
+$$
+\det(A - \lambda I) = 0.
+$$
+
+$$
+\begin{vmatrix} 1 - \lambda & \rho \\ \rho & 1 - \lambda \end{vmatrix} = (1 - \lambda)(1 - \lambda) - \rho^2.
+$$
+
+$$
+(1 - \lambda)^2 - \rho^2 = 0.
+$$
+
+$$
+(1 - \lambda - \rho)(1 - \lambda + \rho) = 0.
+$$
+
+The eigenvalues are:
+
+$$
+\lambda_1 = 1 + \rho, \quad \lambda_2 = 1 - \rho.
+$$
+
+For $\lambda_1 = 1 + \rho$, solve:
+
+$$
+\begin{bmatrix} 1 - (1 + \rho) & \rho \\ \rho & 1 - (1 + \rho) \end{bmatrix}
+\begin{bmatrix} x \\ y \end{bmatrix} = 0.
+$$
+
+$$
+\begin{bmatrix} -\rho & \rho \\ \rho & -\rho \end{bmatrix} 
+\begin{bmatrix} x \\ y \end{bmatrix} = 0.
+$$
+
+Setting the first row equation:
+
+$$
+-\rho x + \rho y = 0 \quad \Rightarrow \quad x = y.
+$$
+
+Choosing $x = \frac{1}{\sqrt{2}}$, gives the eigenvector:
+
+$$
+v_1 = \begin{bmatrix} \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} \end{bmatrix}.
+$$
+
+For $\lambda_2 = 1 - \rho$, solve:
+
+$$
+\begin{bmatrix} -(-\rho) & \rho \\ \rho & -(-\rho) \end{bmatrix}
+\begin{bmatrix} x \\ y \end{bmatrix} = 0.
+$$
+
+$$
+\begin{bmatrix} \rho & \rho \\ \rho & \rho \end{bmatrix} 
+\begin{bmatrix} x \\ y \end{bmatrix} = 0.
+$$
+
+Setting the first row equation:
+
+$$
+\rho x + \rho y = 0 \quad \Rightarrow \quad x = -y.
+$$
+
+Choosing $x = \frac{1}{\sqrt{2}}$, gives the eigenvector:
+
+$$
+v_2 = \begin{bmatrix} \frac{1}{\sqrt{2}} \\ -\frac{1}{\sqrt{2}} \end{bmatrix}.
+$$
+
+The characteristic vectors of $A$ are:
+
+$$
+\begin{bmatrix} \frac{1}{\sqrt{2}} \\ \frac{1}{\sqrt{2}} \end{bmatrix}, \quad
+\begin{bmatrix} \frac{1}{\sqrt{2}} \\ -\frac{1}{\sqrt{2}} \end{bmatrix},
+$$
+
+Corresponding to eigenvalues $1 + \rho$ and $1 - \rho$, respectively.
+
+### 11.5
+
+#### (a)
+
+If all eigenvalues are equal $\lambda_1 = \lambda_2 = \dots = \lambda_p = \lambda$, then the covariance matrix takes the form:
+
+$$
+\Sigma = \lambda I_p,
+$$
+
+Where $I_p$ is the $p \times p$ identity matrix. This indicates that the distribution is **isotropic**, meaning it has the same spread in all directions.
+
+The ellipsoid of constant density in this case is a **sphere** centered at the mean, since all principal axes have the same length.
+
+#### (b)
+
+The covariance matrix has one distinct eigenvalue $\lambda_1$ and all others equal to $\lambda$ (where $\lambda_1 > \lambda$). This means:
+
+$$
+\Sigma = \lambda I_p + (\lambda_1 - \lambda) v v',
+$$
+
+Where $v$ is the eigenvector corresponding to $\lambda_1$.
+
+The ellipsoid of constant density in this case is an **elongated ellipsoid**, stretched along the principal axis corresponding to $\lambda_1$. This means the spread of the distribution is greater in one direction compared to the others.
+
+### 11.10
+
+Problem gives:
+
+-   $U_1 = \beta^{(1)'} X$ is the first population principal component with variance:
+
+    $$
+    \mathcal{V}(U_1) = \lambda_1.
+    $$
+
+-   $V_1 = b^{(1)'} X$ is the first sample principal component with sample variance $l_1$, based on sample covariance matrix $S$.
+
+-   $S^*$ is the covariance matrix of a second independent sample.
+
+Show that:
+
+$$
+b^{(1)'} S^* b^{(1)} \leq \lambda_1.
+$$
+
+The first principal component direction $\beta^{(1)}$ is the eigenvector corresponding to the largest eigenvalue $\lambda_1$ of the population covariance matrix $\Sigma$, meaning:
+
+$$
+\Sigma \beta^{(1)} = \lambda_1 \beta^{(1)}.
+$$
+
+The first sample principal component direction $b^{(1)}$ is chosen to maximize:
+
+$$
+b' S b,
+$$
+
+Subject to $\|b\| = 1$. The sample estimate $b^{(1)}$ converges to $\beta^{(1)}$ as the sample size increases.
+
+Since $S^*$ is another independent estimate of the population covariance matrix $\Sigma$, its eigenvalues approximate those of $\Sigma$, but with sampling variability. But for any unit vector $b$:
+
+$$
+b' S^* b \leq \lambda_1.
+$$
+
+Since $b^{(1)}$ is an estimate of $\beta^{(1)}$, and $S^*$ approximates $\Sigma$, the largest possible variance explained by any direction is bounded by $\lambda_1$, the maximum eigenvalue of $\Sigma$.
+
+$$
+b^{(1)'} S^* b^{(1)} \leq \lambda_1.
+$$
+
+Showe above is that the variance captured by the first sample principal component in an independent sample cannot exceed the maximum population variance $\lambda_1$.
+
+### 11.17
+
+**Principal Components Analysis of Painted Turtle Measurements**
+
+The data consist of 24 observations on three variables (Length, Width, Height in mm). After computing the sample means and (unbiased) covariance matrix,
+
+$$
+S = \frac{1}{n-1}\sum_{i=1}^{24}(x_i-\bar{x})(x_i-\bar{x})^T,
+$$ One obtains:
+
+$$
+S \approx \begin{pmatrix}
+140.32 & 79.50 & 38.26 \\[1mm]
+79.50  & 50.04 & 22.82 \\[1mm]
+38.26  & 22.82 & 11.67
+\end{pmatrix}.
+$$
+
+The principal components are found by solving:
+
+$$
+\det(S - \lambda I) = 0.
+$$
+
+This yields the eigenvalues (which are the principal-component variances)
+
+$$
+\lambda_1 \approx 197.3,\quad \lambda_2 \approx 3.55,\quad \lambda_3 \approx 1.18,
+$$
+
+With total variability:
+
+$$
+\lambda_1+\lambda_2+\lambda_3 \approx 202.0.
+$$
+
+98% of the total variation is captured by the first component.
+
+A corresponding set of normalized eigenvectors (principal-component loadings) is:
+
+$$
+v_1 \approx \begin{pmatrix} 0.844 \\[0.5mm] 0.490 \\[0.5mm] 0.218 \end{pmatrix},\quad
+v_2 \approx \begin{pmatrix} -0.380 \\[0.5mm] 0.686 \\[0.5mm] -0.624 \end{pmatrix},\quad
+v_3 \approx \begin{pmatrix} 0.377 \\[0.5mm] -0.536 \\[0.5mm] -0.755 \end{pmatrix}.
+$$
+
+Since the loadings for the first component are all positive and of similar magnitude, PC1 is interpreted as an overall factor, while the remaining components (with much smaller variances) account for minor shape differences.
+
+$$
+S \approx \begin{pmatrix}
+140.32 & 79.50 & 38.26 \\[1mm]
+79.50  & 50.04 & 22.82 \\[1mm]
+38.26  & 22.82 & 11.67
+\end{pmatrix},\quad
+\lambda_1 \approx 197.3,\quad \lambda_2 \approx 3.55,\quad \lambda_3 \approx 1.18,
+$$
+
+$$
+v_1 \approx (0.844,\;0.490,\;0.218),\quad
+v_2 \approx (-0.380,\;0.686,\;-0.624),\quad
+v_3 \approx (0.377,\;-0.536,\;-0.755).
+$$
