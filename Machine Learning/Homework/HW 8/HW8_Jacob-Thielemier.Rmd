@@ -1,0 +1,255 @@
+---
+title: 'Homework Chapter 8'
+author: "Jacob Thielemier"
+date: "19 April 2024"
+output: pdf_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	results = FALSE
+)
+```
+
+## Question 1
+
+#### Part (a)
+
+```{r}
+library(knitr)
+library(dplyr)
+
+m <- matrix(c(0, 0.3, 0.4, 0.7, 0.3, 0, 0.5, 0.8, 0.4, 0.5, 0., 0.45, 0.7, 0.8, 0.45, 0), ncol = 4)
+c1 <- hclust(as.dist(m), method = "complete")
+plot(c1)
+```
+
+#### Part (b)
+
+```{r}
+c2 <- hclust(as.dist(m), method = "single")
+plot(c2)
+```
+
+#### Part (c)
+
+```{r results='asis'}
+table(1:4, cutree(c1, 2))
+```
+
+#### Part (d)
+
+```{r results='asis'}
+table(1:4, cutree(c2, 2))
+```
+
+#### Part (e)
+
+```{r}
+plot(c1, labels = c(2, 1, 3, 4))
+```
+
+## Question 2
+
+#### Part (a)
+
+```{r}
+library(ggplot2)
+d <- data.frame(
+  x1 = c(1, 1, 0, 5, 6, 4),
+  x2 = c(4, 3, 4, 1, 2, 0)
+)
+ggplot(d, aes(x = x1, y = x2)) + geom_point()
+```
+
+#### Part (b)
+
+```{r results='asis'}
+set.seed(42)
+d$cluster <- sample(c(1, 2), size = nrow(d), replace = TRUE)
+d$cluster
+```
+
+#### Part (c)
+
+```{r results='asis'}
+centroids <- sapply(c(1,2), function(i) colMeans(d[d$cluster == i, 1:2]))
+centroids
+```
+
+#### Part (d)
+
+```{r results='asis'}
+dist <- sapply(1:2, function(i) {
+    sqrt((d$x1 - centroids[1, i])^2 + (d$x2 - centroids[2, i])^2)
+})
+d$cluster <- apply(dist, 1, which.min)
+d$cluster
+```
+
+#### Part (e)
+
+```{r}
+centroids <- sapply(c(1,2), function(i) colMeans(d[d$cluster == i, 1:2]))
+dist <- sapply(1:2, function(i) {
+    sqrt((d$x1 - centroids[1, i])^2 + (d$x2 - centroids[2, i])^2)
+})
+d$cluster <- apply(dist, 1, which.min)
+```
+
+-   In this case, we get stable labels after the first iteration.
+
+#### Part (g)
+
+```{r}
+ggplot(d, aes(x = x1, y = x2, color = factor(cluster))) + geom_point()
+```
+
+## Question 3
+
+#### Part (a and b)
+
+```{r}
+set.seed(42)
+hc <- hclust(dist(USArrests), method = "complete")
+```
+
+```{r}
+ct <- cutree(hc, 3)
+sapply(1:3, function(i) names(ct)[ct == i])
+```
+
+```{r results='asis'}
+cluster1 <- c("Alabama", "Alaska", "Arizona", "California", "Delaware", "Florida",
+              "Illinois", "Louisiana", "Maryland", "Michigan", "Mississippi", "Nevada",
+              "New Mexico", "New York", "North Carolina", "South Carolina")
+cluster2 <- c("Arkansas", "Colorado", "Georgia", "Massachusetts", "Missouri", "New Jersey",
+              "Oklahoma", "Oregon", "Rhode Island", "Tennessee", "Texas", "Virginia",
+              "Washington", "Wyoming")
+cluster3 <- c("Connecticut", "Hawaii", "Idaho", "Indiana", "Iowa", "Kansas", "Kentucky",
+              "Maine", "Minnesota", "Montana", "Nebraska", "New Hampshire", "North Dakota",
+              "Ohio", "Pennsylvania", "South Dakota", "Utah", "Vermont", "West Virginia", "Wisconsin")
+
+clusters <- data.frame(
+  Cluster = rep(1:3),
+  States = I(list(cluster1, cluster2, cluster3))
+)
+
+clusters$States <- sapply(clusters$States, toString)
+
+kable(clusters, format = "markdown", table.attr = "class='table table-bordered'", caption = "Cluster Assignment of States")
+```
+
+
+#### Part (c and d)
+
+```{r}
+hc2 <- hclust(dist(scale(USArrests)), method = "complete")
+```
+
+```{r}
+ct <- cutree(hc2, 3)
+sapply(1:3, function(i) names(ct)[ct == i])
+```
+
+```{r results='asis'}
+cluster1 <- c("Alabama", "Alaska", "Georgia", "Louisiana", "Mississippi", "North Carolina", "South Carolina", "Tennessee")
+cluster2 <- c("Arizona", "California", "Colorado", "Florida", "Illinois", "Maryland", "Michigan", "Nevada", "New Mexico", "New York", "Texas")
+cluster3 <- c("Arkansas", "Connecticut", "Delaware", "Hawaii", "Idaho", "Indiana", "Iowa", "Kansas", "Kentucky", "Maine",
+              "Massachusetts", "Minnesota", "Missouri", "Montana", "Nebraska", "New Hampshire", "New Jersey", "North Dakota", 
+              "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Dakota", "Utah", "Vermont", 
+              "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming")
+
+clusters <- data.frame(
+  Cluster = rep(1:3, each=1),
+  States = I(list(
+    toString(cluster1),
+    toString(cluster2),
+    toString(cluster3)
+  ))
+)
+
+clusters$States <- sapply(clusters$States, toString)
+
+kable(clusters, format = "markdown", table.attr = "class='table table-bordered'", caption = "Cluster Assignment of States")
+```
+
+-   Scaling results in different clusters and the choice of whether to scale or not depends on the data in question. In this case, the variables are:
+
+    -   Murder numeric Murder arrests (per 100,000)\
+    -   Assault numeric Assault arrests (per 100,000)
+    -   UrbanPop numeric Percent urban population\
+    -   Rape numeric Rape arrests (per 100,000)
+
+-   These variables are not naturally on the same unit and the units involved are somewhat arbitrary (so for example, Murder could be measured per 1 million rather than per 100,000) so in this case I would argue the data should be scaled.
+
+## Question 4
+
+#### Part (a and b)
+
+```{r}
+set.seed(42)
+data <- matrix(rnorm(60 * 50), ncol = 50)
+classes <- rep(c("A", "B", "C"), each = 20)
+dimnames(data) <- list(classes, paste0("v", 1:50))
+data[classes == "B", 1:10] <- data[classes == "B", 1:10] + 1.2
+data[classes == "C", 5:30] <- data[classes == "C", 5:30] + 1
+```
+
+```{r}
+pca <- prcomp(data)
+ggplot(data.frame(Class = classes, PC1 = pca$x[, 1], PC2 = pca$x[, 2]),
+    aes(x = PC1, y = PC2, col = Class)) + 
+  geom_point()
+```
+
+#### Part (c)
+
+```{r results='asis'}
+km <- kmeans(data, 3)$cluster
+table(km, names(km))
+```
+
+$K$-means separates out the clusters nearly perfectly.
+
+#### Part (d)
+
+```{r results='asis'}
+km <- kmeans(data, 2)$cluster
+table(km, names(km))
+```
+
+$K$-means effectively defines cluster 2 to be class B, but cluster 1 is a mix
+of classes A and B. 
+
+#### Part (e)
+
+```{r results='asis'}
+km <- kmeans(data, 4)$cluster
+table(km, names(km))
+```
+
+$K$-means effectively defines cluster 1 to be class B, cluster 2 to be class A
+but clusters 3 and 4 are split over class C.
+
+#### Part (f)
+
+```{r results='asis'}
+km <- kmeans(pca$x[, 1:2], 3)$cluster
+table(km, names(km))
+```
+
+$K$-means again separates out the clusters nearly perfectly.
+
+#### Part (g)
+
+```{r results='asis'}
+km <- kmeans(scale(data), 3)$cluster
+table(km, names(km))
+```
+
+$K$-means appears to perform less well on the scaled data in this case.

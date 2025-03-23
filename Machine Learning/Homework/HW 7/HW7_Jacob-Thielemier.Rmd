@@ -1,0 +1,283 @@
+---
+title: 'Homework Chapter 9'
+author: "Jacob Thielemier"
+date: "17 April 2024"
+output: pdf_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	results = FALSE
+)
+```
+
+## Question 1
+
+#### Part (a and b)
+
+```{r}
+library(ISLR)
+library(e1071)
+library(ISLR)
+require(caTools)
+require(plotrix)
+
+set.seed(4)
+x1 = runif(500)-0.50
+x2 = runif(500)-0.50
+y = 1*(x1^2-x2^2 > 0)
+df=data.frame(x1=x1, x2=x2, y=as.factor(y))
+plot(x1,x2,col = (2 - y))
+```
+
+#### Part (c and d)
+
+```{r}
+glm.fit = glm(y~x1+x2, data=df, family = 'binomial')
+
+glm.probs = predict(glm.fit, newdata=df, type = 'response')
+glm.preds = rep(0,500)
+glm.preds[glm.probs>0.50] = 1
+
+table(preds=glm.preds, truth=df$y)
+
+plot(x1,x2,col=2-glm.preds)
+```
+
+-   As expected, the decision boundary is linear. Error rate: 43.8%. The predicted probabilities, and the error rates are impacted by the set.seed value. In some cases all the observations are predicted to be the same class.
+
+#### Part (e and f)
+
+```{r}
+glm.fit = glm(y~I(x1^2)+I(x2^2), data = df, family = 'binomial')
+
+glm.probs = predict(glm.fit, newdata = df, type = 'response')
+glm.preds = rep(0,500)
+glm.preds[glm.probs>0.5] = 1
+table(preds=glm.preds, truth=df$y)
+
+plot(x1,x2,col=2-glm.preds)
+```
+
+-   Quadratic transformations of X1 and X2 result in perfect separation. All observations are correctly classified. Error rate : 0%.
+
+#### Part (g)
+
+```{r}
+tune.out=tune(svm,y~.,data = df,kernel='linear',
+              ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100)))
+bestmod=tune.out$best.model
+```
+
+```{r}
+ypred=predict(bestmod, newdata=df, type='response')
+table(predict=ypred, truth=df$y)
+plot(x1,x2,col=ypred)
+```
+
+-   Error rate: 41.4%.
+
+#### Part (h)
+
+```{r}
+tune.out=tune(svm, y~., data=df, kernel='radial',
+              ranges=list(cost=c(0.1,1,10,100,1000),gamma=c(0.5,1,2,3,4)))
+bestmod=tune.out$best.model
+```
+
+```{r}
+ypred=predict(bestmod, newdata=df, type='response')
+table(predict=ypred, truth=df$y)
+plot(x1,x2,col=ypred)
+```
+
+-   Error rate: 3.6%.
+
+#### Part (i)
+
+-   The logistic regression models using linear terms and non-linear terms closely match the SVM with linear and radial kernels respectively. As expected, logistic regression with non-linear terms and SVM with a radial kernel outperform the models using linear terms. These models achieve near perfect accuracy in predicting the class of the training observations. The results confirm that Logistic Regression and SVM are similar methods.
+
+## Question 2
+
+#### Part (a and b)
+
+```{r}
+head(Auto)
+```
+
+
+```{r}
+set.seed(222)
+auto.length = length(Auto$mpg)
+mpg.median = median(Auto$mpg)
+mpg01 = rep(NA,auto.length) 
+
+for (i in 1:auto.length) if (Auto$mpg[i] > mpg.median) mpg01[i]=1 else mpg01[i]=0
+
+auto.df = Auto
+auto.df$mpg01 = as.factor(mpg01)
+```
+
+```{r}
+linear.tune=tune(svm,mpg01~.,data=auto.df,kernel='linear',
+                 ranges=list(cost=c(0.001,0.01,0.1,1,5,10,100,1000)))
+summary(linear.tune)
+```
+
+  - The training CV error decreases as the cost increases, with a minimum at cost=1, thereafter it starts increasing.
+  
+
+#### Part (c)
+
+```{r}
+set.seed(222)
+radial.tune=tune(svm, mpg01~., data=auto.df, kernel='radial',
+                 ranges=list(cost=c(0.1,1,10,100,1000),gamma=c(0.5,1,2,3,4)))
+
+radial.tune$best.parameters
+radial.tune$best.performance
+```
+
+  - The training CV error is lowest for a radial model with cost=1 and gamma=0.5, but the value is around 4x higher than for the linear model.
+  
+```{r}
+set.seed(222)
+poly.tune = tune(svm, mpg01~., data=auto.df, kernel='polynomial',
+                 ranges=list(cost=c(0.1,1,10,100,1000), degree=c(1,2,3,4,5)))
+
+poly.tune$best.parameters
+poly.tune$best.performance
+```
+
+  - The best polynomial model is with degree=1 and cost=1000. The lowest training CV errors are given by the linear SVM and polynomial with degree=1, and this suggest the true decision boundary is linear. We would have to test these models on a test set to properly ascertain which of the models is the best.
+  
+#### Part (d)
+
+```{r}
+plot(linear.tune)
+plot(radial.tune)
+plot(poly.tune)
+```
+
+```{r}
+best_linear <- linear.tune$best.performance
+best_radial <- radial.tune$best.performance
+best_poly <- poly.tune$best.performance
+
+cat("Best CV Error - Linear Kernel:", best_linear, "\n")
+cat("Best CV Error - Radial Kernel:", best_radial, "with gamma:", radial.tune$best.parameters$gamma, "\n")
+cat("Best CV Error - Polynomial Kernel:", best_poly, "with degree:", poly.tune$best.parameters$degree, "\n")
+```
+  - SVM with Linear Kernel: Tends to be simpler and faster to train, suitable for linearly separable data. The performance hinges on the right choice of cost.
+  - SVM with Radial Basis Kernel: More flexible and capable of modeling complex relationships but can be overfitted if not properly tuned. The choice of gamma and cost is critical.
+  - SVM with Polynomial Kernel: Offers a different form of flexibility than the radial kernel by adjusting the polynomial degree, which can model more complex boundaries than linear SVMs but also risks overfitting with higher degrees.
+
+## Question 3
+
+#### Part (a and b) 
+
+```{r}
+set.seed(131)
+
+sample.data = sample.split(OJ$Purchase, SplitRatio = 800/length(OJ$Purchase))
+train.set = subset(OJ, sample.data==T)
+test.set = subset(OJ, sample.data==F)
+```
+
+```{r}
+svmfit = svm(Purchase~., data = train.set, kernel = "linear", cost=0.01)
+summary(svmfit)
+```
+
+  - There are a large number of support vectors, so the margin is very wide.
+
+#### Part (c)
+
+```{r}
+svm.pred = predict(svmfit, train.set)
+table(predict=svm.pred, truth=train.set$Purchase)
+```
+
+
+```{r}
+svm.pred = predict(svmfit, test.set)
+table(predict=svm.pred, truth=test.set$Purchase)
+```
+
+  - Training set error rate: 129/800 = 0.16
+  - Test set error rate: 50/270 = 0.185
+
+#### Part (d and e)
+
+```{r}
+set.seed(131)
+tune.out = tune(svm, Purchase~., data = train.set, kernel = "linear", 
+                ranges=list(cost=c(0.01,0.1,0.5,1,10)))
+```
+
+```{r}
+svm.pred = predict(tune.out$best.model, train.set)
+table(predict=svm.pred, truth=train.set$Purchase)
+```
+
+```{r}
+svm.pred = predict(tune.out$best.model, test.set)
+table(predict=svm.pred, truth=test.set$Purchase)
+```
+
+  - Training error rate: 128/800 = 0.16
+  - Test error rate: 48/270 = 0.178
+  - Using the optimal value of cost improves the test error rate slightly.
+  
+#### Part (f)
+
+```{r}
+set.seed(131)
+tune.out = tune(svm, Purchase~., data = train.set, kernel = "radial", 
+                ranges=list(cost=c(0.01,0.1,0.5,1,10)))
+```
+
+```{r}
+svm.pred = predict(tune.out$best.model, train.set)
+table(predict=svm.pred, truth=train.set$Purchase)
+```
+
+
+```{r}
+svm.pred = predict(tune.out$best.model, test.set)
+table(predict=svm.pred, truth=test.set$Purchase)
+```
+
+  - Training error rate: 119/800 = 0.149
+  - Test error rate: 52/270 = 0.193
+
+#### Part (g)
+
+```{r}
+set.seed(131)
+tune.out = tune(svm, Purchase~., data = train.set, kernel = "polynomial", 
+                ranges=list(cost=c(0.01,0.1,0.5,1,10)), degree=2)
+```
+
+```{r}
+svm.pred = predict(tune.out$best.model, train.set)
+table(predict=svm.pred, truth=train.set$Purchase)
+```
+
+```{r}
+svm.pred = predict(tune.out$best.model, test.set)
+table(predict=svm.pred, truth=test.set$Purchase)
+```
+
+  - Training error rate: 109/800 = 0.136
+  - Test error rate: 58/270 = 0.215
+
+#### Part (h)
+
+  - The optimal radial and polynomial models both have a lower training and higher test error rate than the linear SVM. This suggests that both models are over fitting the training set when compared to the linear SVM.
+  
+  - The linear SVM with optimal cost has a test error rate that is slightly above its training error rate. The small increase is normal behaviour, and the fact that it is still below the radial and polynomial error rates strongly supports the linear SVM being the best model.

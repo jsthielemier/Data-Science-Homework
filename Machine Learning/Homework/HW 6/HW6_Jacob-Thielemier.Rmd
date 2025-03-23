@@ -1,0 +1,267 @@
+---
+title: 'Homework Chapter 8'
+author: "Jacob Thielemier"
+date: "1 April 2024"
+output: pdf_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	results = FALSE
+)
+```
+
+## Question 1
+
+-   The randomForestSRC package in R provides several advancements and additional functionalities over the traditional randomForest package. Mainly, randomForestSRC implements Breiman's random forests for a wide variety of problems using fast OpenMP parallel processing. Key features include versatile data handling, advanced analytical methods, enhanced variable importance metrics, imputation methods, advanced clustering, parallel computing capabilities, and additional functionalities.
+
+## Question 2
+
+#### Part (a)
+
+```{r fig.height=6, fig.width=12}
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("ggtree")
+
+library(ggplot2)
+library(tidyverse)
+library(ggtree)
+
+tree <- ape::read.tree(text = "(((3:1.5,(10:1,0:1)A:1)B:1,15:2)C:1,5:2)D;")
+tree$node.label <- c("X1 < 1", "X2 < 1", "X1 < 0", "X2 < 0")
+
+ggtree(tree, ladderize = FALSE) + scale_x_reverse() + coord_flip() +
+  geom_tiplab(vjust = 2, hjust = 0.5) + 
+  geom_text2(aes(label=label, subset=!isTip), hjust = -0.1, vjust = -1)
+```
+
+#### Part (b)
+
+```{r fig.height=6, fig.width=12}
+plot(NULL, xlab="X1", ylab="X2", xlim = c(-1, 2), ylim = c(0, 3), xaxs = "i", yaxs = "i")
+abline(h = 1, col = "red", lty = 2)
+lines(c(1, 1), c(0, 1), col = "blue", lty = 2)
+lines(c(-1, 2), c(2, 2), col = "red", lty = 2)
+lines(c(0, 0), c(1, 2), col = "blue", lty = 2)
+text(
+  c(0, 1.5, -0.5, 1, 0.5), 
+  c(0.5, 0.5, 1.5, 1.5, 2.5), 
+  labels = c("-1.80", "0.63", "-1.06", "0.21", "2.49")
+)
+```
+
+## Question 3
+
+#### Part (a and b)
+
+```{r}
+library(MASS)
+library(randomForest)
+require(caTools)
+library(ISLR)
+library(tree)
+library(tidyr)
+library(glmnet) 
+library(gbm)    
+
+set.seed(42)
+train <- sample(c(TRUE, FALSE), nrow(Carseats), replace = TRUE)
+```
+
+```{r fig.height=6, fig.width=12}
+tr <- tree(Sales ~ ., data = Carseats[train, ])
+summary(tr)
+plot(tr)
+text(tr, pretty = 0, digits = 2, cex = 0.8)
+
+carseats_mse <- function(model) {
+  p <- predict(model, newdata = Carseats[!train, ])
+  mean((p - Carseats[!train, "Sales"])^2)
+}
+carseats_mse(tr)
+```
+
+-   Shelve location and Price are the most important predictors, same as with the classification tree. The Test MSE is: 3.04
+
+#### Part (c)
+
+```{r fig.height=6, fig.width=12}
+res <- cv.tree(tr)
+plot(res$size, res$dev, type = "b", xlab = "Tree size", ylab = "Deviance")
+min <- which.min(res$dev)
+abline(v = res$size[min], lty = 2, col = "red")
+```
+
+-   Pruning improves performance very slightly (though this is not repeatable in different rounds of cross-validation). Arguably, a good balance is achieved when the tree size is 11.
+
+```{r fig.height=6, fig.width=12}
+ptr <- prune.tree(tr, best = 11)
+plot(ptr)
+text(ptr, pretty = 0, digits = 2, cex = 0.8)
+carseats_mse(ptr)
+```
+
+#### Part (d)
+
+```{r}
+bagged <- randomForest(Sales ~ ., data = Carseats[train, ], mtry = 10, 
+  ntree = 200, importance = TRUE)
+carseats_mse(bagged)
+importance(bagged)
+```
+
+-   The test error rate is \~2.1 which is an improvement over the pruned regression tree.
+
+#### Part (e)
+
+```{r}
+rf <- randomForest(Sales ~ ., data = Carseats[train, ], mtry = 3, 
+  ntree = 500, importance = TRUE)
+carseats_mse(rf)
+importance(rf)
+```
+
+-   The test error rate is \~2.2 which is an improvement over the pruned regression tree, although not quite as good as the bagging approach.
+
+#### Part (f)
+
+```{r}
+library(BART)
+
+predict.wbart <- function(model, ...) model$yhat.test.mean
+
+bartfit <- gbart(Carseats[train, 2:11], Carseats[train, 1], 
+  x.test = Carseats[!train, 2:11])
+carseats_mse(bartfit)
+```
+
+-   Using BART, the test error rate is \~1.6 which is an improvement over random forest and bagging.
+
+## Question 4
+
+#### Part (a, b, c, and d)
+
+```{r}
+set.seed(3)
+
+df = OJ
+sample.data = sample.split(df$Purchase, SplitRatio = 800/1070) #800 observations for the test set.
+train.set = subset(df, sample.data==T)
+test.set = subset(df, sample.data==F)
+```
+
+```{r}
+tree.OJ = tree(Purchase ~ .,data=train.set)
+summary(tree.OJ)
+```
+
+-   The training error rate is 0.15, and there are 10 terminal nodes. The residual mean deviance is high, and so this model doesn't provide a good fit to the training data.
+
+```{r}
+tree.OJ
+```
+
+-   Branch 8 results in a terminal node. The split criterion is `WeekofPurchase < 238.5` and there are 49 observations in this branch, with each observation belonging to MM. The final prediction for this branch is `MM`.
+
+```{r fig.height=6, fig.width=12}
+plot(tree.OJ)
+text(tree.OJ,pretty=0)
+```
+
+-   `LoyalCH`(Customer brand loyalty for Citrus Hill) is the most important variable. Only five variables out of 18 are used.
+
+#### Part (e)
+
+```{r}
+pred.OJ = predict(tree.OJ, newdata = test.set, type = "class")
+table(pred.OJ,test.set$Purchase)
+```
+
+-   Test error rate of 0.21. This is higher than for the training set and is as expected.
+
+#### Part (f, g, and h)
+
+```{r fig.height=6, fig.width=12}
+set.seed(3)
+cv.OJ = cv.tree(tree.OJ, FUN=prune.misclass)
+cv.OJ
+
+plot(cv.OJ$size, cv.OJ$dev, xlab = "Tree size", ylab = "CV Classification Error", type = "b")
+```
+
+-   Trees with 10 or 8 terminal nodes have the lowest CV Classification Errors.
+
+#### Part (i and j)
+
+```{r}
+prune.OJ = prune.misclass(tree.OJ,best=5)
+pred.prune = predict(prune.OJ, newdata = train.set, type = "class")
+table(pred.prune,train.set$Purchase)
+```
+
+-   Training error rate of 0.16. Slightly higher than using the full tree.
+
+#### Part (k)
+
+```{r}
+pred.prune = predict(prune.OJ, newdata = test.set, type = "class")
+table(pred.prune,test.set$Purchase)
+```
+
+-   Test error rate of 0.207. Pretty much the same as using the full tree, however, we now have a more interpretable tree.
+
+## Question 5
+
+#### Part (a)
+
+```{r}
+Caravan$Purchase01=rep(NA,5822)
+for (i in 1:5822) if (Caravan$Purchase[i] == "Yes") 
+  (Caravan$Purchase01[i]=1) else (Caravan$Purchase01[i]=0)
+```
+
+```{r}
+train.set = Caravan[1:1000,]
+test.set = Caravan[1001:5822,]
+```
+
+#### Part (b)
+
+```{r fig.height=6, fig.width=12}
+set.seed(5)
+boost.Caravan = gbm(Purchase01~.-Purchase, data=train.set,distribution = "bernoulli", 
+                    n.trees = 1000, shrinkage = 0.01)
+summary(boost.Caravan)
+```
+
+-   PPERSAUT and MKOOPKLA appear to be the most important variables.
+
+#### Part (c)
+
+```{r}
+probs.Caravan = predict(boost.Caravan, newdata = test.set, n.trees = 1000, type="response")
+
+preds = rep("No",4822)
+preds[probs.Caravan>0.20]="Yes"
+
+actual = test.set$Purchase
+table(actual, preds)
+```
+
+-   Overall, the boosted model makes correct predictions for 92.2% of the observations. The actual number of "No" is 94% and "Yes" is 6%, and so this is an imbalanced dataset. A model simply predicting "No" on each occasion would have made 94% of the predictions correctly. However, in this case we are more interested in predicting those who go on to purchase the insurance. The model predicts "Yes" 158 times, and it is correct on 35 of these predictions - so 22.2% of those predicted to purchase actually do so. This is much better than random guessing (6%).
+
+```{r}
+glm.fit = glm(Purchase~.-Purchase01, data = train.set, family = binomial)
+glm.probs = predict(glm.fit, test.set, type="response")
+glm.preds = rep("No",4822)
+glm.preds[glm.probs>0.2]="Yes"
+table(actual,glm.preds)
+```
+
+-   Logistic regression predicts "Yes" 408 times, and it is correct on 58 occasions - so 14.2% of those predicted to purchase actually do so. This model is better than random guessing but is worse than the boosted model.

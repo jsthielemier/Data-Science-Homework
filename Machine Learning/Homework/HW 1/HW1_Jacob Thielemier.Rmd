@@ -1,0 +1,248 @@
+---
+title: 'Homework 1'
+author: "Jacob Thielemier"
+date: "23 January 2024"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### Question 1
+
+#### (a)
+
+Use the following formula: $$Obs.X \sqrt{(0-x_1)^2 + (0-x_2)^2 + (0-x_3)^2}$$
+
+```{r}
+Obs <- function(x1, x2, x3) {
+  result <- sqrt((0-x1)^2 + (0-x2)^2 + (0-x3)^2)
+  return(result)
+}
+
+Obs.1 <- Obs(0, 3, 0)
+Obs.2 <- Obs(2, 0, 0)
+Obs.3 <- Obs(0, 1, 3)
+Obs.4 <- Obs(0, 1, 2)
+Obs.5 <- Obs(-1, 0, 1)
+Obs.6 <- Obs(1, 1, 1)
+obs_values <- c(Obs.1, Obs.2, Obs.3, Obs.4, Obs.5, Obs.6)
+print(obs_values)
+
+```
+
+#### (b)
+
+**Green**; the nearest single observation is Obs.5.
+
+#### (c)
+
+**Red**; the nearest three observations are green (Obs.5), red (Obs.6) and red (Obs.2). The probability of the test point belonging to red is 2/3 and green is 1/3. Therefore, the prediction is red.
+
+#### (d)
+
+For highly non-linear boundaries, we would expect the best value of K to be small. Small $K$ values yield a model with lots of detailed curves in the boundary, and likely the lowest irreducible error.
+
+### Question 2
+
+#### (a)
+
+**ii.** because without considering the interaction term, the base model shows that college graduates earn more. This is indicated by the positive coefficient for Level.
+
+#### (b)
+
+**\$137,100**
+
+Use the following formula: $$Y = 50 + 20*GPA + 0.07*IQ + 35*Level + 0.01*GPA:IQ - 10*GPA:Level$$
+
+```{r}
+earn <- function(GPA, IQ, Level) {
+  Y = 50 + 20*GPA + 0.07*IQ + 35*Level + 0.01*(GPA*IQ) - 10*(GPA*Level)
+  return(Y)
+}
+questionB <- earn(4.0, 110, 1)
+print(questionB)
+
+```
+
+#### (c)
+
+**False** the magnitude of the coefficient for the GPA/IQ interaction term being very small does not imply that there is very little evidence of an interaction effect. If the coefficient is small but statistically significant (which can be determined by looking at the p-value), it means the interaction effect is present and meaningful.
+
+### Question 3
+
+#### (a)
+
+```{r}
+options(repos = c(CRAN = "https://cloud.r-project.org/"))
+install.packages("ISLR")  
+library(ISLR)             
+data(Carseats)            
+```
+
+```{r}
+carseats_lm = lm(Sales~Price+Urban+US,data=Carseats)
+summary(carseats_lm)
+```
+
+#### (b)
+
+-   The `Price` coefficient is negative and so sales will fall by roughly 54 seats (0.054x1000) for every unit (\$1) increase in price.
+-   The `UrbanYes` coefficient is not statistically significant.
+-   The `USYes` coefficient is 1.2, and this means an average increase in car seat sales of 1200 units when `US=Yes`(this predictor refers to the shop being in the USA).
+
+#### (c)
+
+$$
+\textit{Sales} = 13 + -0.054 \times \textit{Price} + \begin{cases}
+   -0.022,   & \text{if $\textit{Urban}$ is Yes, $\textit{US}$ is No} \\
+    1.20,    & \text{if $\textit{Urban}$ is No, $\textit{US}$ is Yes} \\
+    1.18,    & \text{if $\textit{Urban}$ and $\textit{US}$ is Yes} \\
+    0,       & \text{Otherwise}
+\end{cases}
+$$
+
+#### (d)
+
+If we use all variables, the null hypothesis can be rejected for `CompPrice`, `Income`, `Advertising`, `Price`, `ShelvelocGood`, `ShelvelocMedium` and `Age`.
+
+```{r}
+carseats_all_lm = lm(Sales~.,data=Carseats)
+summary(carseats_all_lm)
+```
+
+#### (e)
+
+```{r}
+carseats_all_lm2 <- lm(Sales~.-Education-Urban-US-Population,data=Carseats)
+summary(carseats_all_lm2)
+```
+
+#### (f)
+
+-   The RSE goes down from 2.47 **model (a)** to 1.02 **model (e)**. The R2 statistic goes up from 0.24 **(a)** to 0.872 **(e)** and the F-statistic goes up from 41.52 to 381.4.
+-   The statistical evidence clearly shows that **(e)** is a much better fit.
+
+#### (g)
+
+```{r}
+confint(carseats_all_lm2)
+```
+
+#### (h)
+
+```{r}
+par(mfrow=c(2,2))
+plot(carseats_all_lm2)
+```
+
+-   The residuals vs. fitted values chart doesn't show any distinct shape, so the model appears to be a good fit to the data.
+-   There appears to be some outliers. We can check by using studentized residuals. Observation 358 appears to an outlier.
+
+```{r}
+   rstudent(carseats_all_lm2)[which(rstudent(carseats_all_lm2)>3)]
+```
+
+-   There appears to be one high leverage observation.
+
+```{r}
+hatvalues(carseats_all_lm2)[order(hatvalues(carseats_all_lm2), decreasing = T)][1]
+```
+
+### Question 4
+
+#### (a)
+
+```{r}
+set.seed(1)
+x = rnorm(100, mean=0, sd=1)
+```
+
+-   Length of y2=100, $\beta_0=-1$, $\beta_1=0.5$
+
+#### (b)
+
+```{r}
+eps = rnorm(100, mean=0, sd=0.5)
+```
+
+#### (c) 
+
+```{r}
+y = -1 + (0.5*x) + eps
+```
+
+Length of y2=100, $\beta_0=-1$, $\beta_1=0.5$
+
+#### (d),(e),(f)
+
+```{r}
+plot(y~x, main= 'Scatter plot of x against y', col='brown')
+#Linear regression line for (e)
+lm.fit6 = lm(y~x)
+summary(lm.fit6)
+abline(lm.fit6, lwd=1, col ="blue")
+#Population regression line for (f)
+abline(a=-1, b=0.5, lwd=1, col="red")
+legend('bottomright', bty='n', legend=c('Least Squares Line', 'Population Line'), col=c('blue','red'), lty = c(1, 1))
+
+```
+
+-   A positive linear relationship exists between x2 and y2, with added variance introduced by the error terms.
+-   $\hat\beta_0 = -1.018$ and $\hat\beta_1 = 0.499$.The regression estimates are very close to the true values: $\beta_0=-1$, $\beta_1=0.5$ This is further confirmed by the fact that the regression and population lines are very close to each other. P-values are near zero and F-statistic is large so null hypothesis can be rejected.
+
+#### (g)
+
+```{r}
+lm.fit7 = lm(y~x+I(x^2))
+summary(lm.fit7)
+```
+
+The quadratic term does not improve the model fit. The F-statistic is reduced, and the p-value for the squared term is higher than 0.05 and shows that it isn't statistically significant.
+
+#### (h)
+
+```{r}
+eps = rnorm(100, mean=0, sd=sqrt(0.01))
+y = -1 +(0.5*x) + eps
+
+plot(y~x, main='Reduced Noise', col='brown')
+lm.fit7 = lm(y~x)
+summary(lm.fit7)
+abline(lm.fit7, lwd=1, col ="blue")
+abline(a=-1,b=0.5, lwd=1, col="red")
+legend('bottomright', bty='n', legend=c('Least Squares Line', 'Population Line'), col=c('blue','red'), lty = c(1, 1))
+```
+
+The points are closer to each other, the RSE is lower, R2 and F-statistic are much higher than with variance of 0.25. The linear regression and population lines are very close to each other as noise is reduced, and the relationship is much more linear.
+
+#### (i)
+
+```{r}
+eps = rnorm(100, mean=0, sd=sqrt(0.56))
+y = -1 +(0.5*x) + eps
+
+plot(y~x, main='Increased Noise', col='brown')
+lm.fit8 = lm(y~x)
+summary(lm.fit8)
+abline(lm.fit8, lwd=1, col ="blue")
+abline(a=-1,b=0.5, lwd=1, col="red")
+legend('bottomright', bty='n', legend=c('Least Squares Line', 'Population Line'), col=c('blue','red'), lty = c(1, 1))
+```
+
+The points are more spread out and so the relationship is less linear. The RSE is higher, the R2 and F-statistic are lower than with variance of 0.25.
+  
+
+#### (j)
+
+```{r}
+confint(lm.fit6) 
+confint(lm.fit7)
+confint(lm.fit8)
+```
+
+Confidence interval values are narrowest for the lowest variance model, widest for the highest variance model and in-between these two for the original model.
+
+
+

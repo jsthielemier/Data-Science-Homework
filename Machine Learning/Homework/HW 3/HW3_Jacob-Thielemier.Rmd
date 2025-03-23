@@ -1,0 +1,386 @@
+---
+title: 'Homework 3'
+author: "Jacob Thielemier"
+date: "23 February 2024"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+### Question 1
+
+#### The right and Wrong way
+
+```{r warning=FALSE}
+rm(list=ls())
+
+n = 50 # number of observations
+p = 5000 # number of predictor variables
+m = 100 # number of predictors to select
+set.seed(1)
+X = data.frame(replicate(p, rnorm(n)))
+# Randomly assigned binary class labels
+Y = as.factor(sample(c(rep(1, n/2), rep(0, n/2))))
+df = cbind(Y, X)
+# train and test indices for sanity checking
+permuted.indices = sample(1:n)
+test = permuted.indices[1:floor(n/2)]
+train = permuted.indices[(floor(n/2)+1):n]
+
+train.model = function(data, index) {
+  return(glm(Y~., data=data, family="binomial", subset=index))
+  # return(lm(Y~., data=data, subset=index))
+}
+
+error.rate = function(model, data, index) {
+  df = data[index,]
+  probs = predict(model, df, type="response")
+  preds = rep("0", length(probs))
+  preds[probs>0.5]="1"
+  return(mean(preds!=df$Y))
+}
+
+association = function(x, y) {
+  # a measure of association between numerical X variable and categorical Y variable
+  # return(glm(y~x, family="binomial")$aic)
+  # return(-summary(aov(x~y))[[1]]$F[[1]])
+  # force y to be numeric in the case that it is a binary categorical variable
+  return(cor(x,as.numeric(y)))
+}
+
+# select the first n columns most associated with the y.index column
+# return only the y column and selected columns from data
+select.predictors = function(data, index, y.index, n) {
+  X = data[index, -y.index] # remove y column
+  y = data[index,y.index]
+  # select the first n predictors (the columns of dataframe X) most associated with binary vector y
+  selected.X.names = names(sort(sapply(X, function(x) association(x, y)))[1:n])
+  selected.X.indices = sapply(selected.X.names, function(name) which(colnames(data)==name))
+  return(data[,c(y.index, selected.X.indices)])
+  # selected.X = X[,selected.X.names]
+  # return(cbind(data.frame(Y=y), selected.X))
+}
+
+library(caret)
+cv.error = function(data, k, train.fun, test.fun, r=1){
+  # create list of k folds. each fold contains a vec of row indices.
+  # set.seed(1)
+  test.err = 0
+  for (i in 1:r) {
+    folds = createFolds(1:nrow(data), k)
+    # for each fold, train then test.
+    for(i in 1:length(folds)) {
+      test.idx = folds[[i]]
+      train.idx = unlist(folds[(1:length(folds))[-i]]) # combine non-test-fold indices into one vec.
+      model = train.fun(data, train.idx)
+      test.err = test.err + test.fun(model, data, test.idx)
+    }
+  }
+  return(test.err/(r*k)) # mean test error across folds
+}
+
+# The Right Way: for cross-validation, make feature selection a part of model training,
+# so it will only be done on training data
+train.fun = function(data, index) {
+  filtered.df = select.predictors(data, index, grep("^Y$", colnames(data)), m)
+  fit = train.model(filtered.df, index)
+}
+# The Right Way: selectd features only using training data
+df1 = select.predictors(df, train, grep("^Y$", colnames(df)), m)
+fit1 = train.model(df1, train)
+# Training error should be close to 0%, because there are so many predictors and so few observations
+error.rate(fit1, df1, train)
+# Test error should be close to 50%, because there is no relationship between predictors and outcome.
+cv.error(df, k=5, train.fun=train.fun, test.fun=error.rate, r=10)
+
+# The Wrong Way: select predictors using all the data
+df2 = select.predictors(df, 1:nrow(df), grep("^Y$", colnames(df)), m)
+fit2 = train.model(df2, train)
+# Training error should be close to 0%, because there are so many predictors and so few observations
+error.rate(fit2, df2, train)
+# Test error is less than 50%
+cv.error(df2, k=5, train.fun=train.model, test.fun=error.rate, r=10)
+```
+
+-   The Cross-Validation code focuses on demonstrating the best practices for predictive modeling, particularly in feature selection and cross-validation techniques. The code starts by generating a dataset with 50 observations and 5000 predictors. It employs an association-based method to rank predictors based on their relationship with the binary outcome. The "Right Way" involves performing feature selection separately within each training fold, while the "Wrong Way" performs feature selection on the entire dataset before cross-validation.
+
+#### Monte Carlo simulation and the bootstrap
+
+```{r}
+rm(list=ls())
+
+#########################################################
+
+library(MASS) #MASS library is required to simulate multivariate normal distribution
+
+#Monte Carlo simulation from the true underlying bivariate norma distribution
+
+alpha_sim = NA
+N=1000 #number of Monte Carlo random samples
+
+set.seed(1) #set seed to reproduce the results
+
+for(i in 1:N)
+{
+  dat = mvrnorm(n=100, mu=c(0,0), Sigma=matrix(c(1, 0.5, 0.5, 1.25), nrow=2)) #simulate from bivariate normal distribution
+  alpha_sim[i] = (var(dat[,2]) - cov(dat[,1],dat[,2])) / (var(dat[,1]) + var(dat[,2]) - 2*cov(dat[,1],dat[,2])) #compute alpha from those Monte Carlo samples
+}
+
+mean(alpha_sim) #0.603
+sd(alpha_sim) #0.082
+quantile(alpha_sim, probs=c(0.025,0.975)) # (0.443, 0.768)
+
+#########################################################
+#Example
+obs_data = mvrnorm(n=100, mu=c(0,0), Sigma=matrix(c(1, 0.5, 0.5, 1.25), nrow=2)) # this is the observed data
+
+#Monte Carlo simulation base on the bivariate normal, but the paramters are estimated from the observed data
+mu_x = mean(obs_data[,1])
+mu_y = mean(obs_data[,2])
+
+sigma_x = var(obs_data[,1])
+sigma_y = var(obs_data[,2])
+sigma_xy = cov(obs_data[,1],obs_data[,2])
+
+alpha_MC = NA
+N=1000 #number of Monte Carlo random samples
+
+for(i in 1:N)
+{
+  MC_dat = mvrnorm(n=100, mu=c(mu_x, mu_y), Sigma=matrix(c(sigma_x, sigma_xy, sigma_xy, sigma_y), nrow=2)) #simulate from bivariate normal distribution
+  alpha_MC[i] = (var(MC_dat[,2]) - cov(MC_dat[,1], MC_dat[,2])) / (var(MC_dat[,1]) + var(MC_dat[,2]) - 2*cov(MC_dat[,1], MC_dat[,2])) #compute alpha from those Monte Carlo samples
+}
+
+mean(alpha_MC) #0.650
+sd(alpha_MC) #0.092
+quantile(alpha_MC, probs=c(0.025,0.975)) #(0.477, 0.832)
+
+#The bootstrap
+N=1000 #number of bootstrap samples used
+alpha_boot = NA
+
+for(i in 1:N)
+{
+  boot_index = sample(1:100, size=100, replace=T, prob=rep(1/100, times=100)) #bootstrap: sample the index of the data with replacement
+  boot_dat = obs_data[boot_index,]
+  alpha_boot[i] = (var(boot_dat[,2]) - cov(boot_dat[,1],boot_dat[,2])) / (var(boot_dat[,1]) + var(boot_dat[,2]) - 2*cov(boot_dat[,1],boot_dat[,2]))
+}
+
+mean(alpha_boot) #0.642
+sd(alpha_boot) #0.079
+quantile(alpha_boot, probs=c(0.025,0.975)) #(0.480, 0.797)
+```
+
+-   The Monte Carlo code focuses on estimating the properties of a specific statistical measure, alpha, which appears to be a function of variance and covariance from bivariate normal distributions. The first example simulates samples directly from a theoretical bivariate normal distribution with predefined parameters. The second simulates samples based on parameters estimated from observed data, mimicking real-world scenarios where true parameters are unknown. The code showcases the use of Monte Carlo simulations and bootstrap methods in statistical inference, specifically in estimating the distribution of complex statistics derived from sample data.
+
+
+
+### Question 2
+
+#### (a)
+
+-   This is 1 - probability that it is the $j$th = $1 - 1/n$.
+
+#### (b)
+
+-   Each bootstrap observation is a random sample, so the probability is the same ($1 - 1/n$).
+
+#### (c)
+
+-   For the $j$th observation to not be in the sample, it would have to *not* be picked for each of $n$ positions, so not picked for $1, 2, ..., n$, thus the probability is $(1 - 1/n)^n$
+
+#### (d)
+
+```{r}
+n <- 5
+1 - (1 - 1 / n)^n
+```
+
+#### (e)
+
+```{r}
+n <- 100
+1 - (1 - 1 / n)^n
+```
+
+#### (f)
+
+```{r}
+n <- 100000
+1 - (1 - 1 / n)^n
+```
+
+#### (g)
+
+```{r}
+x <- sapply(1:100000, function(n) 1 - (1 - 1 / n)^n)
+plot(x, log = "x", type = "o")
+```
+
+-   The probability rapidly approaches 0.63 with increasing $n$.
+
+-   We know that: $e^x = \lim_{x \to \inf} \left(1 + \frac{x}{n}\right)^n$ and with $x = -1$, then the limit is $1 - e^{-1} = 1 - 1/e$.
+
+#### (h)
+
+```{r}
+store=rep(NA, 10000)
+for(i in 1:10000){
+  store[i] = sum(sample(1:100, rep=TRUE)==4)>0
+}
+mean(store)
+```
+
+-   The probability of including $4$ when resampling numbers $1...100$ is close to the answer from 2(e).
+
+### Question 3
+
+#### (a)
+
+```{r}
+require(ISLR2)
+data("Default")
+library(ISLR2)
+set.seed(42)
+fit <- glm(default ~ income + balance, data = Default, family = "binomial")
+```
+
+#### (b)
+
+```{r}
+train <- sample(nrow(Default), nrow(Default) / 2)
+fit <- glm(default ~ income + balance, data = Default, family = "binomial", subset = train)
+pred <- ifelse(predict(fit, newdata = Default[-train, ], type = "response") > 0.5, "Yes", "No")
+table(pred, Default$default[-train])
+mean(pred != Default$default[-train])
+```
+
+#### (c)
+
+
+```{r}
+replicate(3, {
+  train <- sample(nrow(Default), nrow(Default) / 2)
+  fit <- glm(default ~ income + balance, data = Default, family = "binomial", subset = train)
+  pred <- ifelse(predict(fit, newdata = Default[-train, ], type = "response") > 0.5, "Yes", "No")
+  mean(pred != Default$default[-train])
+})
+```
+
+-   The results are similar to each other (low variance). The minor differences can be explained by the fact that we used separate observations for each model.
+
+#### (d)
+
+```{r}
+replicate(3, {
+  train <- sample(nrow(Default), nrow(Default) / 2)
+  fit <- glm(default ~ income + balance + student, data = Default, family = "binomial", subset = train)
+  pred <- ifelse(predict(fit, newdata = Default[-train, ], type = "response") > 0.5, "Yes", "No")
+  mean(pred != Default$default[-train])
+})
+```
+
+-   Including `student` does not seem to influence the test error.
+
+### Question 4
+
+#### (a)
+
+```{r}
+require(ISLR2)
+data(Weekly)
+fit <- glm(Direction ~ Lag1 + Lag2, data = Weekly, family = "binomial")
+```
+
+#### (b)
+
+```{r}
+fit <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-1, ], family = "binomial")
+```
+
+#### (c)
+
+```{r}
+predict(fit, newdata = Weekly[1, , drop = FALSE], type = "response") > 0.5
+```
+
+-   Yes the observation was correct.
+
+#### (d and e)
+
+```{r}
+error <- numeric(nrow(Weekly))
+for (i in 1:nrow(Weekly)) {
+  fit <- glm(Direction ~ Lag1 + Lag2, data = Weekly[-i, ], family = "binomial")
+  p <- predict(fit, newdata = Weekly[i, , drop = FALSE], type = "response") > 0.5
+  error[i] <- ifelse(p, "Down", "Up") == Weekly$Direction[i]
+}
+mean(error)
+```
+
+-   LOOCV error rate is 44.9%. This shows that the model is correct in 55% of its predictions, which is better than random guessing.
+
+### Question 5
+
+#### (a)
+
+```{r}
+require(MASS)
+data(Boston)
+(mu <- mean(Boston$medv))
+```
+
+#### (b)
+
+```{r}
+sd(Boston$medv) / sqrt(length(Boston$medv))
+```
+
+#### (c)
+
+```{r}
+library(boot)
+set.seed(42) 
+(bs <- boot(Boston$medv, function(v, i) mean(v[i]), 10000))
+```
+
+-   The standard error using the bootstrap (0.403) is very close to that obtained from the formula above (0.409).
+
+#### (d)
+
+```{r}
+se <- sd(bs$t)
+c(mu - 2 * se, mu + 2 * se)
+```
+
+#### (e)
+
+```{r}
+median(Boston$medv)
+```
+
+#### (f)
+
+```{r}
+set.seed(42)
+boot(Boston$medv, function(v, i) median(v[i]), 10000)
+```
+
+-   The estimated standard error of the median is 0.374. This is lower than the standard error of the mean, so we can be reasonably confident of the estimate.
+
+#### (g)
+
+```{r}
+quantile(Boston$medv, 0.1)
+```
+
+#### (h)
+
+```{r}
+set.seed(42)
+boot(Boston$medv, function(v, i) quantile(v[i], 0.1), 10000)
+```
+
+-    We get a standard error of 0.497. This is higher than the standard error of the median, but still quite small. We can still be confident about the value of the 10th percentile.

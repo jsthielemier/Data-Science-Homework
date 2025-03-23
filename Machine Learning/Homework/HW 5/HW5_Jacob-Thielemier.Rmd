@@ -1,0 +1,282 @@
+---
+title: 'Homework Chapter 7'
+author: "Jacob Thielemier"
+date: "20 March 2024"
+output: pdf_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	results = FALSE
+)
+```
+
+## Question 1
+
+#### Part (a)
+
+Here we penalize the $g$ and a infinite $\lambda$ means that this penalty dominates. This means that the $\hat{g}$ will be 0 and the fitted curve \(\hat{g}\) will be a horizontal line at the level that minimizes the vertical distances to all the data points.
+
+#### Part (b)
+
+Here we penalize the first derivative (the slope) of $g$ and a infinite $\lambda$ means that this penalty dominates. Thus the slope will be 0 and the fitted curve \(\hat{g}\) will be a straight line that minimizes the sum of squared residuals from the data points.
+
+#### Part (c)
+
+Here we penalize the second derivative (the change of slope) of $g$ and a infinite $\lambda$ means that this penalty dominates. Thus the line will be straight (and otherwise best fitting $x$).
+
+#### Part (d)
+
+Here we penalize the third derivative (the change of the change of slope) of $g$ and a infinite $\lambda$ means that this penalty dominates. In other words, the curve will have a consistent rate of change and the curve $\hat{g}$ will be a parabola.
+
+#### Part (e)
+
+Here we penalize the third derivative, but a value of $\lambda = 0$ means that there is no penalty. The resulting $\hat{g}$  will pass through or very close to every data point, and could potentially be a high-degree polynomial that fits the data points exactly, which means it can have a very wiggly shape, overfitting the data.
+
+## Question 2
+
+#### Part (a)
+
+$\hat{g}_2$ is more flexible (by penalizing a higher derivative of $g$) and so will have a smaller training RSS.
+
+#### Part (b)
+
+We cannot tell which function will produce a smaller test RSS, but there is chance that $\hat{g}_1$ will if $\hat{g}_2$ overfits the data.
+
+#### Part (c)
+
+There's no penalty for model complexity, so both $\hat{g}_1$ and $\hat{g}_2$ will fully fit the training data without considering the complexity of the model. Therefore, they might end up with the same training RSS if they can both fit the data well. For the test RSS, the model that matches the true complexity of the underlying data generation process will perform better.
+
+## Question 3
+
+#### Part (a)
+
+```{r}
+library(ISLR)
+library(boot)
+library(splines)
+library(MASS)
+library(leaps)
+library(gam)
+require(caTools)
+
+plot(Boston$dis,Boston$nox, xlab="Distance", ylab="Nox values")
+
+model.1 = glm(nox~poly(dis,3), data=Boston)
+summary(model.1)
+
+dis.grid = seq(from=min(Boston$dis),to=max(Boston$dis),0.2)
+preds=predict(model.1,newdata=list(dis=dis.grid), se=T)
+lines(dis.grid,preds$fit,col="blue",lwd=3)
+lines(dis.grid,preds$fit+2*preds$se,col="blue",lwd=3,lty=2)
+lines(dis.grid,preds$fit-2*preds$se,col="blue",lwd=3,lty=2)
+```
+
+-   The regression summary shows a cubic fit is statistically significant. The cubic fit is plotted on the chart, and does appear to match the underlying shape of the data.
+  
+```{r}
+set.seed(2)
+
+boston_df = Boston
+boston_sample = sample.split(boston_df$dis, SplitRatio = 0.80)
+boston_train = subset(boston_df, boston_sample==TRUE) 
+boston_test = subset(boston_df, boston_sample==FALSE)
+
+```
+
+```{r fig.height = 8, fig.width = 15}
+rss = rep(0,10)
+colours = rainbow(10)
+plot(Boston$dis,Boston$nox,xlab="Distance", ylab="Nox values", main="Polynomial fits from degree 1-10.")
+
+for (i in 1:10){
+  model = glm(nox~poly(dis,i), data=boston_train)
+  rss[i] = sum((boston_test$nox - predict(model,newdata=list(dis=boston_test$dis)))^2)
+  preds=predict(model,newdata=list(dis=dis.grid))
+  lines(dis.grid,preds,col=colours[i], lwd=2, lty=1)
+}
+
+legend(10,0.8,legend=1:10, col= colours[1:10],lty=1,lwd=2)
+```
+
+```{r}
+rss
+```
+
+-   The RSS decreases from the linear (0.533) to the cubic model (0.361), and increases thereafter. This supports the argument that the cubic model provides the best fit.
+
+#### Part (b)
+  
+```{r}
+plot(1:10,rss,xlab="Polynomial degree", ylab="RSS", main="RSS on test set vs polynomial degree", type='b')
+```
+
+-   RSS is at a minimum for the degree 3 polynomial.
+
+#### Part (c)
+
+```{r}
+res <- sapply(1:10, function(i) {
+  fit <- glm(nox ~ poly(dis, i), data = Boston)
+  cv.glm(Boston, fit, K = 10)$delta[1]
+})
+which.min(res)
+```
+
+-   The optimal degree is 3 based on cross-validation. Higher values tend to lead to overfitting.
+
+
+#### Part (d)
+
+```{r}
+spline.fit = lm(nox~bs(dis,df=4), data=Boston)
+summary(spline.fit)
+attr(bs(Boston$dis,df=4),"knots")
+```
+
+-   A regression spline with four degrees of freedom is statistically significant. The knots are chosen automatically when using the df() function. In this case we have single knot at the 50th percentile value.
+  
+```{r fig.height = 8, fig.width = 10}
+plot(Boston$dis,Boston$nox,xlab="Distance", ylab="Nox values")
+preds = predict(spline.fit, newdata=list(dis=dis.grid), se=T)
+lines(dis.grid, preds$fit,col="blue",lwd=3)
+lines(dis.grid, preds$fit+2*preds$se,col="blue",lwd=3,lty=2)
+lines(dis.grid, preds$fit-2*preds$se,col="blue",lwd=3,lty=2)
+```
+
+-   The resulting spline fit is very similar to that of polynomial regression using degree 3.
+  
+#### Part (e)
+
+```{r fig.height = 8, fig.width = 15, warning=FALSE}
+rss = rep(0,18)
+colours = rainbow(18)
+plot(Boston$dis,Boston$nox,xlab="Distance", ylab="Nox values",main="Regression splines using degrees from 3-10")
+
+for (i in 3:20){ 
+  spline.model = lm(nox~bs(dis,df=i), data=boston_train)
+  rss[i-2] = sum((boston_test$nox - predict(spline.model,newdata=list(dis=boston_test$dis)))^2)
+  preds=predict(spline.model,newdata=list(dis=dis.grid))
+  lines(dis.grid,preds,col=colours[i-2], lwd=2, lty=1)
+}
+legend(10,0.8,legend=3:20, col=colours[1:18],lty=1,lwd=2)
+
+which.min(rss)+2
+```
+
+
+-   Smaller differences between spline fits than with the polynomial fits. RSS is the lowest for the degree 12 model.
+  
+#### Part (f)
+
+##### Cross validation:
+```{r results='show', warning=FALSE}
+
+k=10
+set.seed(3)
+
+folds = sample(1:k, nrow(Boston), replace=T)
+cv.errors = matrix(NA,k,18, dimnames = list(NULL, paste(3:20)))  #Matrix to store cv errors for degrees 3 to 20.
+
+
+for(j in 3:20){
+  for(i in 1:k){
+    spline.model=lm(nox~bs(dis,df=j), data=Boston[folds!=i,])
+    pred=predict(spline.model,Boston[folds==i,],id=i)
+    cv.errors[i,j-2]=mean((Boston$nox[folds==i] - pred)^2)
+  }
+}
+
+mean.cv.errors = apply(cv.errors,2,mean)
+mean.cv.errors[which.min(mean.cv.errors)]
+```
+  
+-   The minimum for the CV errors is using degree 8. This is different to the degree 12 model found using a validation set. 
+  
+
+##### Cross validation using cv.glm() function:
+```{r results='show',message=FALSE,warning=FALSE}
+
+set.seed(3)
+cv.err = rep(0,18)
+  
+for(j in 3:20){
+    fit=glm(nox~bs(dis,df=j), data=Boston)
+    cv.err[j-2] = cv.glm(Boston, fit, K=10)$delta[1]
+}
+
+which.min(cv.err)+2
+```
+  
+-   The cv.glm() method finds a minimum at degree 8. This is the same degree found using the previous cross validation method, but different to using a validation set.
+  
+## Question 4
+
+#### Part (a)
+
+```{r}
+set.seed(4)
+
+college_df = College
+college_sample = sample.split(college_df$Outstate, SplitRatio = 0.80)
+college_train = subset(college_df, college_sample==TRUE) 
+college_test = subset(college_df, college_sample==FALSE)
+```
+
+
+```{r results='show',warning=FALSE}
+fit.fwd = regsubsets(Outstate~., data=college_train, nvmax=17, method="forward")
+fit.summary = summary(fit.fwd)
+
+which.min(fit.summary$cp)    
+which.min(fit.summary$bic)   
+which.max(fit.summary$adjr2) 
+
+par(mfrow=c(2,2))
+plot(1:17, fit.summary$cp,xlab="Variables",ylab="Cp",main="Cp", type='b')
+plot(1:17, fit.summary$bic,xlab="Variables",ylab="BIC",main="BIC", type='b')
+plot(1:17, fit.summary$adjr2,xlab="Variables",ylab="Adjusted R2",main="Adjusted R2", type='b')
+```
+  
+-   The Cp, BIC and Adjusted $R^2$ all identify minimums and a maximum for models with a different number of variables. As can be seen from the charts, the metrics change rapidly as the number of variables increase, but there are only small improvements after a model with 6 variables. The model with 6 variables is selected because it appears to be better at describing this relationship.
+
+```{r}
+coef(fit.fwd,6)
+```
+
+#### Part (b)
+  
+```{r results='show', warning=FALSE}
+gam.m1 = gam(Outstate~Private+
+               s(Room.Board,4)+
+               s(PhD,4)+
+               s(perc.alumni,2)+
+               s(Expend,4)+
+               s(Grad.Rate,5), data=college_train)
+
+par(mfrow=c(2,3))
+plot(gam.m1, col="blue", se=T)
+```
+  
+-   Holding other variables fixed, out of state tuition increases as room and board costs get higher. Similarly, out of state tuition increases as the proportion of alumni who donate increase.
+
+#### Part (c)
+
+```{r results='show', warning=FALSE}
+preds = predict(gam.m1,newdata = college_test)
+mse = mean((college_test$Outstate - preds)^2)
+mse
+```
+
+```{r results='show', warning=FALSE}
+gam.m2 = gam(Outstate~Private+s(Room.Board,4)+s(PhD,4)+s(perc.alumni,2)+s(Expend,4), data=college_train)
+gam.m3 = gam(Outstate~Private+s(Room.Board,4)+s(PhD,4)+s(perc.alumni,2)+s(Expend,4)+Grad.Rate, data=college_train)
+gam.m4 = gam(Outstate~Private+s(Room.Board,4)+s(PhD,4)+s(perc.alumni,2)+s(Expend,4)+s(Grad.Rate,4), data=college_train) 
+anova(gam.m2,gam.m3,gam.m4,gam.m1, test="F")
+```
+
+-   The results provide strong evidence that a GAM which includes `Grad.Rate` as a non-linear function is needed (p=0.03939).

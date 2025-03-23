@@ -1,0 +1,488 @@
+---
+title: 'Homework Chapter 6'
+author: "Jacob Thielemier"
+date: "7 March 2024"
+output: pdf_document
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	error = TRUE,
+	message = FALSE,
+	warning = FALSE,
+	results = FALSE
+)
+```
+
+## Question 1
+
+-   **Logistic Regression:** This is used for binary or binomial outcome data, where the response variable has two possible values (e.g., success/failure, 1/0). Logistic regression models the probability of the default category (often coded as 1).
+
+-   **Poisson Regression:** Suitable for count data or rates, Poisson regression is used when the response variable represents the number of times an event occurs in a fixed interval of time or space.
+
+-   **Multinomial Regression:** This is an extension of logistic regression to multiclass problems, where the response variable can take on more than two categories. It's useful for classifying subjects into multiple categories based on the features provided.
+
+-   **Cox Proportional Hazards Regression:** Used for survival analysis, this model helps in analyzing the time until the occurrence of an event of interest (e.g., death, failure), taking into account the effect of covariates on the time.
+
+-   **Multiple-response Gaussian:** This can be used when there are multiple continuous response variables that you want to predict from the same set of predictors. It fits a separate linear regression model for each response variable but does so simultaneously.
+
+-   **Multivariate Binomial with grouped data:** This is a special case for logistic regression where the response variable can have more than two outcomes, and these outcomes can be grouped in some way. It's useful when dealing with grouped or correlated binary outcomes.
+
+## Question 2
+
+### Part (a, b, and c)
+
+```{r message=FALSE, warning=FALSE}
+library(ISLR2)
+library(glmnet)
+library(leaps)
+library(pls)
+```
+
+```{r}
+set.seed(1)
+X = c(rnorm(100))
+e = rnorm(100, mean=0, sd=0.25)
+```
+
+```{r}
+b0 = 50 ; b1 = 6 ; b2 = 3 ; b3 = 1.5
+Y = c(b0 + b1*X + b2*X^2 + b3*X^3 + e)
+```
+
+```{r}
+df = data.frame(X,X^2,X^3,X^4,X^5,X^6,X^7,X^8,X^9,X^10,Y)
+regfit.full = regsubsets(Y~.,data=df,nvmax=10)
+reg.summary = summary(regfit.full)
+reg.summary$cp
+reg.summary$bic
+reg.summary$adjr2
+```
+
+-   $C_p$ reduces substantially from the one and two variable model to the three variable model. It reduces slightly in the four variable model and rises in small increments after. BIC value is lowest for the three variable model. Adjusted $R^2$ increases to 0.999 in the three variable model from the two variable model value of 0.95.
+-   These metrics point to the three variable model as being the best choice. We can confirm this visually in the charts below.
+
+```{r}
+par(mfrow=c(2,2))
+plot(reg.summary$cp,xlab="Number of variables", ylab="Cp",type="l")
+points(which.min(reg.summary$cp), reg.summary$cp[which.min(reg.summary$cp)], col = "red", pch = 20)
+
+plot(reg.summary$bic,xlab="Number of variables", ylab="BIC",type="l")
+points(which.min(reg.summary$bic), reg.summary$bic[which.min(reg.summary$bic)], col = "red", pch = 20)
+
+plot(reg.summary$adjr2,xlab="Number of variables", ylab="Adjusted RSq",type="l")
+points(which.max(reg.summary$adjr2), reg.summary$adjr2[which.max(reg.summary$adjr2)], col = "red", pch = 20)
+```
+
+### Part (d)
+
+```{r}
+regfit.fwd = regsubsets(Y~.,data=df,nvmax=10,method='forward')
+regfwd.summary = summary(regfit.fwd)
+regfwd.summary
+regfwd.summary$cp
+regfwd.summary$bic
+regfwd.summary$adjr2
+```
+
+```{r}
+regfit.bwd = regsubsets(Y~.,data=df,nvmax=10,method='backward')
+regbwd.summary = summary(regfit.bwd)
+regbwd.summary
+regbwd.summary$cp
+regbwd.summary$bic
+regbwd.summary$adjr2
+```
+
+-   Using forward stepwise the statistical metrics are very similar to that for best subset selection.
+-   Using backwards stepwise the results are very similar to best subset and forward selection.
+-   Compared to 8(c) we see that all these metrics show that the three variable model with the squared and cubed term is the best.
+
+### Part (e)
+
+```{r}
+x = model.matrix(Y~.,df)[,-1]
+y = df$Y
+
+train = sample(1:nrow(x), nrow(x)/2)
+test = (-train)
+y.test = y[test]
+
+lasso = glmnet(x[train,], y[train], alpha=1)
+```
+
+```{r}
+cv.out = cv.glmnet(x[train,],y[train], alpha=1)
+plot(cv.out)
+bestlam = cv.out$lambda.min
+```
+
+-   Higher values of $\lambda$ result in an increase in the MSE. The best value of $\lambda$ is 0.2.
+
+```{r}
+out = glmnet(x,y,alpha=1)
+lasso.coef = predict(out, type="coefficients",s=0.20)[1:11,]
+lasso.coef
+```
+
+-   The lasso model creates a sparse model with four variables. The intercept and coefficients for X, $X^2$ and $X^3$ closely match the ones chosen in 8(b) while the value for $x^4$ is very small. This model provides an accurate estimation of the response $Y$.
+
+### Part (f)
+
+```{r}
+b7 = 5
+Y2 = c(b0 + b7*X^7 + e)
+df2 = data.frame(X,X^2,X^3,X^4,X^5,X^6,X^7,X^8,X^9,X^10,Y2)
+```
+
+```{r}
+regfit.full2 = regsubsets(Y2~.,data=df2,nvmax=10)
+reg.summary = summary(regfit.full2)
+reg.summary
+reg.summary$cp
+reg.summary$bic
+reg.summary$adjr2
+```
+
+-   $C_p$ is lowest for one variable model with the $X^7$ term. BIC value is lowest for the one variable model. Adjusted $R^2$ is 0.999+ for the one variable model.
+-   These statistical metrics point to the one variable model with the $X^7$ term as being the best choice.
+
+```{r}
+x2 = model.matrix(Y2~.,df2)[,-1]
+y2 = df2$Y2
+
+train2 = sample(1:nrow(x2), nrow(x2)/2)
+test2 = (-train2)
+y2.test = y2[test2]
+```
+
+```{r}
+cv.out = cv.glmnet(x[train,],y[train], alpha=1)
+cv.out$lambda.min
+```
+
+```{r}
+lasso2 = glmnet(x2, y2, alpha=1)
+lasso.coef2 = predict(lasso2,type="coefficients",s=0.2)[1:11,]
+lasso.coef2
+```
+
+-   Lasso model using best value of $\lambda$ results in a sparse model with one variable. It assigns a non-zero coefficient to the variable $X^7$ that explains the response $Y$, and assigns a zero to the rest.
+
+## Question 3
+
+### Part (a and b)
+
+```{r}
+set.seed(2)
+x = model.matrix(Apps~.,College)[,-1]
+y = College$Apps
+grid = 10^seq(10,-2,length=100)
+
+train = sample(1:nrow(x), nrow(x)/1.3)
+test = (-train)
+y.test = y[test]
+```
+
+```{r}
+linear.model = glmnet(x[train,], y[train], alpha=0, lambda=grid, thresh=1e-12)
+linear.pred = predict(linear.model, s=0, newx=x[test,],exact=T,x=x[train,],y=y[train])
+mean((linear.pred-y.test)^2)
+```
+
+```{r}
+train.df = data.frame(College[train,])
+test.df = data.frame(College[test,])
+
+lm.fit = lm(Apps~., data=train.df)
+lm.pred = predict(lm.fit, test.df, type=c("response"))
+err.lm = mean((lm.pred-test.df$Apps)^2)
+err.lm
+```
+
+-   The MSE from ridge regression with lambda=0 and lm() function are reasonably similar, and the slight discrepancy is likely due to approximation used by glmnet().
+
+### Part (c)
+
+```{r}
+cv.out = cv.glmnet(x[train,],y[train],alpha=0)
+bestlam = cv.out$lambda.min
+
+ridge.mod = glmnet(x[train,],y[train],alpha=0,lambda=grid, thresh=1e-12)
+ridge.pred = predict(ridge.mod, s=bestlam, newx=x[test,])
+err.ridge = mean((ridge.pred-y.test)^2)
+err.ridge
+```
+
+-   Best value of $\lambda$ is 387.9 and the test MSE is slightly lower than for least squares.
+
+### Part (d)
+
+```{r}
+cv.out = cv.glmnet(x[train,],y[train],alpha=1)
+bestlam = cv.out$lambda.min
+
+lasso.mod = glmnet(x[train,],y[train],alpha=1,lambda=grid)
+lasso.pred = predict(lasso.mod, s=bestlam, newx=x[test,])
+err.lasso = mean((lasso.pred-y.test)^2)
+err.lasso
+
+lasso.coef = predict(lasso.mod, type="coefficients", s=bestlam)[1:18,]
+length(lasso.coef[lasso.coef!= 0])
+lasso.coef
+```
+
+-   Test MSE is slightly lower than least squares regression.
+-   There are no non-zero variables, but many variables are heavily shrunk.
+
+### Part (e)
+
+```{r}
+pcr.fit = pcr(Apps~., data=College, subset=train, scale=T, validation="CV")
+validationplot(pcr.fit, val.type="MSEP")
+```
+
+-   From the graph we can observe that the MSE reduces rapidly as M increases and is lowest at M=16. However, the reduction from M=5 to M=16 is small when compared the reduction from M=1 to M=5.
+
+```{r}
+pcr.pred = predict(pcr.fit, x[test,], ncomp=5)
+mean((pcr.pred-y.test)^2)
+
+pcr.pred = predict(pcr.fit, x[test,], ncomp=16)
+err.pcr = mean((pcr.pred-y.test)^2)
+err.pcr
+```
+
+-   Test MSE for M=5 is 1945054, which is much larger than least squares. The best MSE is achieved when M=16, which gives a test MSE reasonably lower than least squared. Using M=17 gives the same result as least squares.
+
+### Part (f)
+
+```{r}
+pls.fit = plsr(Apps~., data=College, subset=train, scale=T, validation="CV")
+validationplot(pls.fit, val.type="MSEP")
+```
+
+-   The lowest MSE occurs when m\~8.
+
+```{r}
+pls.pred = predict(pls.fit, x[test,], ncomp=8)
+err.pls = mean((pls.pred-y.test)^2)
+err.pls
+```
+
+-   The test MSE is similar to PCR and slightly lower than least squares.
+
+### Part (g)
+
+```{r}
+err.all = c(err.lm, err.ridge, err.lasso, err.pcr, err.pls)
+barplot(err.all, xlab="Models", ylab="Test MSE", names=c("lm", "ridge", "lasso", "pcr", "pls"))
+```
+
+-   All the models give reasonably similar results, with PCR and PLS giving slightly lower test MSE's.
+
+```{r}
+test.avg = mean(y.test)
+lm.r2 = 1 - mean((lm.pred - y.test)^2) / mean((test.avg - y.test)^2)
+ridge.r2 = 1 - mean((ridge.pred - y.test)^2) / mean((test.avg - y.test)^2)
+lasso.r2 = 1 - mean((lasso.pred - y.test)^2) / mean((test.avg - y.test)^2)
+pcr.r2 = 1 - mean((pcr.pred - y.test)^2) / mean((test.avg - y.test)^2)
+pls.r2 = 1 - mean((pls.pred - y.test)^2) / mean((test.avg - y.test)^2)
+
+barplot(c(lm.r2, ridge.r2, lasso.r2, pcr.r2, pls.r2), xlab="Models", ylab="R2",names=c("lm", "ridge", "lasso", "pcr", "pls"))
+```
+
+-   Every model has a R2 metric of around 0.85 or above so we can be reasonably confident about the accuracy of the predictions.
+
+## Question 4
+
+### Part (a, b, and c)
+
+```{r}
+set.seed(111)
+n = 1000
+p = 20
+X = matrix(rnorm(n*p), n, p)
+
+B = sample(-10:10, 20)
+B[1] = 0
+B[4] = 0
+B[7] = 0
+B[11] = 0
+B[15] = 0
+B[19] = 0
+e = rnorm(1000, mean=0, sd=0.1)
+
+Y = X%*%B + e 
+
+df = data.frame(X, Y)
+```
+
+```{r}
+library(caTools)
+sample = sample.split(df$Y, 0.10)
+train = subset(df, sample==T)
+test = subset(df, sample==F)
+```
+
+```{r}
+regfit.full = regsubsets(Y~., data=train, nvmax=20)
+reg.summary = summary(regfit.full)
+
+train.mse = (reg.summary$rss)/length(train)
+plot(1:20,train.mse,xlab = "Variables",ylab = "Training MSE", main = "Training MSE v Number of Variables", pch = 1, type = "b")
+
+```
+
+-   Training MSE decreases monotonically as the number of variables increase. Minimum training MSE is at maximum number of variables: `r which.min(train.mse)`.
+
+### Part (d)
+
+```{r message=FALSE, warning=FALSE}
+library(HH)
+test.mse = rep(NA,20)
+
+for(i in 1:20){
+    model=lm.regsubsets(regfit.full, i)
+    model.pred = predict(model, newdata=test, type=c("response"))
+    test.mse[i] =  mean((test$Y-model.pred)^2)
+  }
+
+plot(1:20,test.mse,xlab = "Variables",ylab = "Test MSE",main = "Test MSE v Number of Variables", pch = 1, type = "b")
+```
+
+-   Test MSE decreases rapidly as the number of variables increase, but the minimum is not at the max number of variables. Minimum test MSE is when number of variables: `r which.min(test.mse)`.
+
+### Part (e)
+
+-   Minimum Test MSE occurs at a model with 13 variables. The test MSE deceases until it reaches the minimum and then starts to rise afterwards.
+-   As the model flexibility increases, it is better able to fit the data set. This results in the Test MSE decreasing rapidly until it reaches a minimum. Further increases in model flexibility causes over fitting and this results in an increase in the Test MSE.
+
+### Part (f)
+
+```{r}
+coef(regfit.full, 13)
+B
+```
+
+-   The best model variables match the 13 non-zero variables from the original model, and their respective coefficients are very similar.
+
+### Part (g)
+
+```{r}
+B = as.data.frame(t(B))
+names(B) = paste0('X', 1:(ncol(B)))
+```
+
+```{r}
+coef.err = rep(NA,20)
+for (i in 1:20){
+  a = coef(regfit.full, i)
+  coef.err[i] = sqrt(sum(((a[-1] - B[names(a)[-1]])^2)))
+}
+
+plot(1:20,coef.err,xlab = "Variables",ylab = "Coef error", main="Coefficient Error v Number of Variables.", pch = 1, type = "b")
+```
+
+```{r}
+which.min(coef.err)
+```
+
+-   The graph starts in a disjointed manner before the coefficient errors start reducing rapidly. Eventually, it does show a minimum at the same variable size as for the test MSE. Though, when using a different random seed the coefficient error chart does not always find a minimum at the same variable size as the test MSE chart. A model that gives a minimum for coefficient error does not always lead to a lower test MSE.
+
+## Question 4
+
+### Part (a)
+
+```{r}
+require(leaps) 
+require(glmnet) 
+library(pls) 
+require(MASS)
+
+predict.regsubsets <- function(object, newdata, id, ...) {
+    form = as.formula(object$call[[2]])
+    mat = model.matrix(form, newdata)
+    coefi = coef(object, id = id)
+    xvars = names(coefi)
+    mat[, xvars] %*% coefi
+}
+
+set.seed(121)
+k = 10
+folds = sample(1:k, nrow(Boston), replace=TRUE)
+cv.errors = matrix(NA,k,13, dimnames = list(NULL, paste(1:13)))
+
+for (j in 1:k) {
+    best.fit = regsubsets(crim ~ ., data = Boston[folds != j, ], nvmax = 13)
+    for (i in 1:13) {
+        pred = predict(best.fit, Boston[folds == j, ], id = i)
+        cv.errors[j, i] = mean((Boston$crim[folds == j] - pred)^2)
+    }
+}
+
+mean.cv.errors = apply(cv.errors, 2, mean)
+plot(1:13, mean.cv.errors, xlab = "Number of variables", ylab = "CV error", main= "Best subset selection", pch = 1, type = "b")
+```
+
+-   CV error is lowest for model with 9 variables. CV Error = `r mean.cv.errors[9]`.
+
+```{r}
+set.seed(121)
+
+x = model.matrix(crim~.,Boston)[,-1]
+y = Boston$crim
+grid = 10^seq(10,-2,length=100)
+
+train = sample(1:nrow(x), nrow(x)/1.3)
+test = (-train)
+y.test = y[test]
+```
+
+```{r}
+set.seed(121)
+cv.out = cv.glmnet(x[train,], y[train], alpha=1)
+bestlam = cv.out$lambda.min
+
+lasso.mod = glmnet(x[train,],y[train],alpha=1,lambda=grid)
+lasso.pred = predict(lasso.mod, s=bestlam, newx=x[test,])
+mean((lasso.pred-y.test)^2)
+
+lasso.coef = predict(lasso.mod, type="coefficients", s=bestlam)[1:13,]
+lasso.coef
+```
+
+-   Test MSE of 31.6, with only age and tax being exactly zero, we have a best model with 10 variables.
+
+```{r}
+cv.out = cv.glmnet(x[train,], y[train], alpha=0)
+bestlam = cv.out$lambda.min
+
+glm.mod = glmnet(x[train,],y[train],alpha=0,lambda=grid, thresh=1e-12)
+glm.pred = predict(glm.mod, s=bestlam, newx=x[test,])
+mean((glm.pred-y.test)^2)
+
+glm.coef = predict(glm.mod, type="coefficients", s=bestlam)[1:13,]
+glm.coef
+```
+
+-   Lambda chosen by cross validation is close to zero, so both ridge regression and lasso test mse are similar to that provided by least squares.
+
+```{r}
+pcr.fit = pcr(crim~., data=Boston, subset=train, scale=T, validation="CV")
+validationplot(pcr.fit, val.type="MSEP")
+```
+
+```{r}
+pcr.pred = predict(pcr.fit, x[test,], ncomp=8)
+mean((pcr.pred-y.test)^2)
+```
+
+-   Using PCR gets a Test MSE of 33.7.
+
+### Part (b and C)
+
+-   I would choose the Lasso model, as it gives the lowest Test MSE.
+-   Lasso models are generally more interpretable for users and presentations.
+-   It results in a sparse model with 10 variables. Two variables whose effect on the response were below the required threshold were removed.

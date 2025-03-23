@@ -1,0 +1,63 @@
+---
+title: 'Homework 2 Optional Tasks'
+author: "Jacob Thielemier"
+date: "19 February 2024"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE
+                      )
+```
+
+### Question 1 Optional Task
+
+-   Take the PDF
+
+$$
+f(x|\mu_k, \Sigma) = \frac{1}{(2\pi)^{\frac{p}{2}}|\Sigma|^{\frac{1}{2}}} \exp\left(-\frac{1}{2}(x - \mu_k)^T \Sigma^{-1} (x - \mu_k)\right)
+$$
+
+-   Take the log of the PDF
+
+$$
+\log f(x|\mu_k, \Sigma) = -\frac{1}{2} \log((2\pi)^p |\Sigma|) - \frac{1}{2}(x - \mu_k)^T \Sigma^{-1} (x - \mu_k)
+$$
+
+-   Simplify the log
+
+$$
+\delta_k(x) = -\frac{1}{2}(x - \mu_k)^T \Sigma^{-1} (x - \mu_k) + \log \pi_k
+$$
+
+-   Left withdiscriminant funciton
+
+$$
+\delta_k(x) = x^T \Sigma^{-1} \mu_k - \frac{1}{2} \mu_k^T \Sigma^{-1} \mu_k + \log \pi_k
+$$
+
+### Question 2 Optional Task
+
+-   Take the PDF
+
+$$
+f(x|\mu_k, \Sigma_k) = \frac{1}{(2\pi)^{\frac{p}{2}}|\Sigma_k|^{\frac{1}{2}}} \exp\left(-\frac{1}{2}(x - \mu_k)^T \Sigma_k^{-1} (x - \mu_k)\right)
+$$
+
+-   The log of PDF
+
+$$
+\log f(x|\mu_k, \Sigma_k) = -\frac{1}{2} \log((2\pi)^p |\Sigma_k|) - \frac{1}{2}(x - \mu_k)^T \Sigma_k^{-1} (x - \mu_k)
+$$
+
+-   The discriminant function of $\delta_k(x)$
+
+$$
+\delta_k(x) = -\frac{1}{2}\log |\Sigma_k| - \frac{1}{2}(x - \mu_k)^T \Sigma_k^{-1} (x - \mu_k) + \log \pi_k
+$$
+
+-   Exand the quadratic term within $\delta_k(x)$
+
+$$
+\delta_k(x) = -\frac{1}{2}\log |\Sigma_k| - \frac{1}{2}(x - \mu_k)^T \Sigma_k^{-1} (x - \mu_k) + \log \pi_k
+$$
