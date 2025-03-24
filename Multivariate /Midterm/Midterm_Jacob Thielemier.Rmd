@@ -303,7 +303,7 @@ kable(regression_table,
     -   Genetic relatedness explained a substantial proportion of EEG variance (96.8%, 95% CI: 94.8–97.7%, from Question 5).
     -   Mantel/RV coefficient analysis also indicated significant genotype-EEG association (RV = 0.459, p < 0.0001, from Question 3).
 
--   Together, these methods confirm a clear genetic contribution to EEG phenotypes, capturing both specific genetic components and overall genetic relatedness.
+-   Together, the PCA-based regression and the variance components analysis provide strong evidence that genetics plays a crucial role in shaping EEG phenotypes. The PCA approach identifies a specific genetic factor (PC1) that significantly influences EEG means, explaining almost 40% of their variability. On the other hand, the variance components model quantifies the overall genetic contribution. This tells us that genetic relatedness accounts for over 96% of the EEG variance. By looking at both specific genetic factors and the overall genetic background, we see that genetics has a strong and complex effect on EEG responses.
 
 
 
